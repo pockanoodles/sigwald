@@ -7,6 +7,12 @@
 import { chromium } from "playwright";
 
 const BASE = process.env.BASE ?? "http://localhost:3230";
+// The site's menu pill (/site/menu.js) is served by personal-website, so it is
+// only there where the whole domain is: live, or `npm run stack` in that repo.
+// On this site's own preview its 404 is expected, and only there is it let go;
+// wherever the site is served, a missing pill fails.
+const standalone = !(await fetch(BASE + "/site/menu.js").then((r) => r.ok, () => false));
+const pillScript = (url) => standalone && /\/site\/menu\.js$/.test(new URL(url || BASE).pathname);
 const PAGES = [
   { path: "/sigwald/", lang: "en", h1: "What should I do right now?", tabs: ["Today", "Focus", "Calendar", "Tasks"] },
   { path: "/sigwald/ja/", lang: "ja", h1: "今、何をやるべきか。", tabs: ["今日", "フォーカス", "カレンダー", "タスク"] },
@@ -28,9 +34,9 @@ for (const pg of PAGES) {
     const tag = `${pg.lang}/${vp.name}`;
     const page = await browser.newPage({ viewport: { width: vp.width, height: vp.height } });
     const errors = [];
-    page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+    page.on("console", (m) => m.type() === "error" && !pillScript(m.location()?.url) && errors.push(m.text()));
     page.on("pageerror", (e) => errors.push(String(e)));
-    page.on("response", (r) => r.status() >= 400 && errors.push(`${r.status()} ${r.url()}`));
+    page.on("response", (r) => r.status() >= 400 && !pillScript(r.url()) && errors.push(`${r.status()} ${r.url()}`));
     const res = await page.goto(BASE + pg.path, { waitUntil: "networkidle" });
     check(res?.status() === 200, `${tag}: page answers 200`);
     check((await page.getAttribute("html", "lang")) === pg.lang, `${tag}: <html lang="${pg.lang}">`);
@@ -72,11 +78,11 @@ for (const pg of PAGES) {
     check(clipped === 0, `${tag}: no command is cut off`);
 
     // The site's MENU pill (<site-menu>, from kaitosoeno.com's /site/menu.js)
-    // opens and closes. It is only there when the site serves the script too
-    // (`npm run stack` in personal-website, or live). The pill grows into its
+    // opens and closes, wherever the site serves it. The pill grows into its
     // drawer on a spring and fades it out on close, so each check waits for
     // the motion to settle.
-    if (await page.evaluate(() => !!customElements.get("site-menu"))) {
+    if (!standalone) {
+      check(await page.evaluate(() => !!customElements.get("site-menu")), `${tag}: the site's menu pill loads`);
       const pill = page.getByRole("button", { name: pg.lang === "en" ? /menu/i : /メニュー/ });
       check((await pill.innerText()).trim() === (pg.lang === "en" ? "MENU" : "メニュー"), `${tag}: the pill says only the word`);
       await pill.click();
