@@ -255,11 +255,10 @@ a.label:hover {
 .hero__visual {
   position: absolute;
   left: 50%;
-  top: 43%;
+  top: calc(43% - 17px);
   translate: -50% -50%;
   display: grid;
   justify-items: center;
-  gap: var(--er-s-4);
   z-index: -1;
 }
 /* Sized so the dial's lower-left curve clears the statement's last line. */
@@ -1104,9 +1103,6 @@ html[data-vt="in"]::view-transition-new(vt-name) {
   }
   html[data-vt-arrived] .hero__words > :nth-child(3) {
     --i: 2;
-  }
-  html[data-vt-arrived] .hero__caption {
-    animation: vt-rise var(--er-dur-enter) var(--er-ease) 640ms both;
   }
   html[data-vt-arrived] .hero__action > * {
     animation: vt-rise var(--er-dur-enter) var(--er-ease) 700ms both;

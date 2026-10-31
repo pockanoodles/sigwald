@@ -48,7 +48,6 @@ export function Landing({ t, locale }: { t: Dict; locale: Locale }) {
         <section className="hero" data-hero>
           <div className="hero__visual">
             <Dial blocks={DAY} label={DIAL_LABEL[locale]} />
-            <p className="label hero__caption">{t.hero.dial.caption}</p>
           </div>
           <div className="hero__words">
             <p className="label">{t.hero.label}</p>
