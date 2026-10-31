@@ -39,7 +39,7 @@ export function Foot({ t, locale, page }: { t: Dict; locale: Locale; page: Page 
               <a href={locale === "en" ? PORTFOLIO_URL : "https://kaitosoeno.com/ja/portfolio"}>{t.footer.portfolio}</a>
             </li>
             <li>
-              <a href={locale === "en" ? "https://kaitosoeno.com/" : "https://kaitosoeno.com/ja"}>{t.menu.items[0].label}</a>
+              <a href={locale === "en" ? "https://kaitosoeno.com/" : "https://kaitosoeno.com/ja"}>{t.footer.contact}</a>
             </li>
           </ul>
         </div>

@@ -7,7 +7,6 @@ import type { Dict, Locale } from "@/content/copy";
 import { UPDATED, policy, type LedgerRow } from "@/content/privacy";
 import { Bar } from "./Bar";
 import { Foot } from "./Foot";
-import { SiteMenu } from "./SiteMenu";
 
 const COLS = ["where", "what", "why"] as const;
 
@@ -89,7 +88,7 @@ export function Privacy({ t, locale }: { t: Dict; locale: Locale }) {
         </div>
       </main>
       <Foot t={t} locale={locale} page="privacy" />
-      <SiteMenu t={t.menu} />
+      <site-menu lang={locale} />
     </>
   );
 }

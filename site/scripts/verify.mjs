@@ -71,15 +71,21 @@ for (const pg of PAGES) {
     const clipped = await page.$$eval(".channel__cmd code", (els) => els.filter((el) => el.scrollWidth > el.clientWidth + 1).length);
     check(clipped === 0, `${tag}: no command is cut off`);
 
-    // The site's MENU pill opens and closes.
-    // The pill grows into its drawer over 300ms and fades it out on close, so
-    // each check waits for the transition to finish.
-    await page.getByRole("button", { name: pg.lang === "en" ? /menu/i : /メニュー/ }).click();
-    await page.waitForTimeout(450);
-    check(await page.locator("#site-menu").isVisible(), `${tag}: the site menu opens`);
-    await page.keyboard.press("Escape");
-    await page.waitForTimeout(450);
-    check(!(await page.locator("#site-menu").isVisible()), `${tag}: Escape closes it`);
+    // The site's MENU pill (<site-menu>, from kaitosoeno.com's /site/menu.js)
+    // opens and closes. It is only there when the site serves the script too
+    // (`npm run stack` in personal-website, or live). The pill grows into its
+    // drawer on a spring and fades it out on close, so each check waits for
+    // the motion to settle.
+    if (await page.evaluate(() => !!customElements.get("site-menu"))) {
+      const pill = page.getByRole("button", { name: pg.lang === "en" ? /menu/i : /メニュー/ });
+      check((await pill.innerText()).trim() === (pg.lang === "en" ? "MENU" : "メニュー"), `${tag}: the pill says only the word`);
+      await pill.click();
+      await page.waitForTimeout(600);
+      check(await page.locator("site-menu #drawer").isVisible(), `${tag}: the site menu opens`);
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(450);
+      check(!(await page.locator("site-menu #drawer").isVisible()), `${tag}: Escape closes it`);
+    }
 
     check(errors.length === 0, `${tag}: no console errors or failed requests${errors.length ? ` (${errors.slice(0, 3).join(" | ")})` : ""}`);
     await page.close();

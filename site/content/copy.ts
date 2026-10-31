@@ -33,8 +33,7 @@ export interface Dict {
     groups: Record<"mac" | "windows" | "linux" | "server", string>;
   };
   open: { eyebrow: string; title: string; body: string; cta: string; by: string; more: string };
-  footer: { rights: string; license: string; source: string; privacy: string; portfolio: string; product: string; maker: string };
-  menu: { menu: string; close: string; items: { href: string; label: string }[] };
+  footer: { rights: string; license: string; source: string; privacy: string; portfolio: string; contact: string; product: string; maker: string };
 }
 
 const en: Dict = {
@@ -111,15 +110,7 @@ const en: Dict = {
     by: "Made by Kaito Soeno.",
     more: "See more of my work",
   },
-  footer: { rights: "© 2026 Kaito Soeno", license: "MIT License", source: "Source", privacy: "Privacy", portfolio: "Portfolio", product: "Sigwald", maker: "Kaito Soeno" },
-  menu: {
-    menu: "Menu",
-    close: "Close",
-    items: [
-      { href: "/", label: "Contact" },
-      { href: "/portfolio", label: "Portfolio" },
-    ],
-  },
+  footer: { rights: "© 2026 Kaito Soeno", license: "MIT License", source: "Source", privacy: "Privacy", portfolio: "Portfolio", contact: "Contact", product: "Sigwald", maker: "Kaito Soeno" },
 };
 
 const ja: Dict = {
@@ -196,15 +187,7 @@ const ja: Dict = {
     by: "制作は Kaito Soeno です。",
     more: "ほかの作品を見る",
   },
-  footer: { rights: "© 2026 Kaito Soeno", license: "MIT License", source: "ソース", privacy: "プライバシー", portfolio: "作品", product: "Sigwald", maker: "Kaito Soeno" },
-  menu: {
-    menu: "メニュー",
-    close: "閉じる",
-    items: [
-      { href: "/ja", label: "お問い合わせ" },
-      { href: "/ja/portfolio", label: "作品" },
-    ],
-  },
+  footer: { rights: "© 2026 Kaito Soeno", license: "MIT License", source: "ソース", privacy: "プライバシー", portfolio: "作品", contact: "お問い合わせ", product: "Sigwald", maker: "Kaito Soeno" },
 };
 
 export const copy: Record<Locale, Dict> = { en, ja };

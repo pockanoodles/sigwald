@@ -11,6 +11,13 @@ export default function JaLayout({ children }: Readonly<{ children: React.ReactN
     <html lang="ja" data-theme="dark" className={fontVars}>
       <head>
         <ViewTransitionScript />
+        {/* kaitosoeno.com's menu pill, the one every page of the domain shows
+            (personal-website components/site-menu/element.ts). Blocking and
+            after the transition script, so the pill is in the first frame a
+            page switch morphs into and its listeners run after this app's. It
+            is a root path, outside this app's /sigwald base path. */}
+        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+        <script src="/site/menu.js" />
       </head>
       <body>
         <ViewTransitionSurface />
