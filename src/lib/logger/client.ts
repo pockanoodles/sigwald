@@ -122,6 +122,12 @@ export class ClientLogger {
         body: JSON.stringify(entries),
       });
 
+      // Signed out (or not allowed): nobody can accept these logs, so drop
+      // them rather than retrying them forever.
+      if (response.status === 401 || response.status === 403) {
+        return { success: true, count: 0 };
+      }
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
