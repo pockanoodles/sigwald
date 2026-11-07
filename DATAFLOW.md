@@ -4,7 +4,7 @@ Sigwald is a personal calendar and task assistant. It runs either as a desktop a
 
 This document answers three questions in plain language: what leaves this machine, where it goes, and why. It is written to be read by someone who does not work on the code. It is kept by hand, so a change to how Sigwald talks to the outside world should change this file in the same commit.
 
-Last verified against the code on **2026-10-26**. For the privacy policy that sits on top of this document, see [kaitosoeno.com/sigwald/privacy](https://kaitosoeno.com/sigwald/privacy/) (`site/content/privacy.ts`), which a change here should follow.
+Last verified against the code on **2026-11-07**. For the privacy policy that sits on top of this document, see [kaitosoeno.com/sigwald/privacy](https://kaitosoeno.com/sigwald/privacy/) (`site/content/privacy.ts`), which a change here should follow.
 
 ---
 
@@ -18,6 +18,7 @@ Last verified against the code on **2026-10-26**. For the privacy policy that si
 | **A CalDAV server you choose** (Fastmail, iCloud, Nextcloud) | Event titles, descriptions, locations and times, plus your CalDAV username and password | Yes | Two-way calendar sync |
 | **Your DNS resolver, and the domain of an email address you type** (only when Settings, Accounts doesn't recognize the domain) | The domain alone, never the address: DNS lookups for its mail and CalDAV records, then at most two unauthenticated requests to `/.well-known/caldav` on that domain | No | Work out where that address keeps its calendar (`src/lib/calendar-discovery.ts`) |
 | **The host of an iCal link you subscribe to** (Google, Outlook, Apple or anyone who publishes one) | A plain request for the link, which carries your IP address | No, it is only read | Show that calendar, read-only |
+| **Any calendar app that subscribes to your Sigwald plan link** (Apple Calendar, Google Calendar, Outlook, Thunderbird — you choose) | Your scheduled task titles, notes and times, plus events from Sigwald's own (LOCAL) calendars, when that app polls the private URL | No, it only reads | Show Sigwald's plan in that app |
 | **Resend** (`api.resend.com`, self-hosted servers only) | Your email address and a one-time reset link | It sends one email | Password reset |
 | **GitHub Releases** (desktop downloads from GitHub only) | A request for the newest release, which carries the app's version, your platform and your IP address | No | Update check |
 
@@ -67,6 +68,12 @@ Sigwald only requests public addresses. It refuses an address on your own machin
 
 Google's "secret address" works like a password for reading that calendar: anyone who has it can read it. Sigwald keeps the link in its database with the calendar's other details, which is not encrypted the way stored credentials are (see Known gaps).
 
+## Your Sigwald plan link (iCal out)
+
+From Settings → Calendar you can create a private URL that any calendar app can subscribe to. That app polls Sigwald and receives a standard calendar file built in `src/lib/ical-out.ts`: your auto-scheduled tasks (title, description and scheduled times) and events from Sigwald-owned LOCAL calendars such as Work module shifts. Google, Outlook, CalDAV and subscribed iCal events are not included — those already live in their own calendars.
+
+The URL holds a secret token. Anyone who has the link can read that feed, the same way Google's "secret address" works. Sigwald stores only a SHA-256 hash of the token, shows the raw token once when you create or replace the link, and never logs it. Replacing the link makes the old URL stop working; turning it off deletes the row. The feed is public to whoever has the URL (no sign-in): calendar apps cannot use your Sigwald session.
+
 ## Resend
 
 The only email Sigwald sends is a password reset. When you ask for one, Sigwald asks Resend to deliver a message to your email address with a link that holds a one-time reset token. This runs only on a self-hosted server that has a Resend API key (`RESEND_API_KEY`) and a sender address (`EMAIL_FROM`) set. With the key but no address, the server logs an error and sends nothing. The desktop app signs you in with a token that is made on each launch, so it has no password reset and sends no email.
@@ -75,7 +82,7 @@ The only email Sigwald sends is a password reset. When you ask for one, Sigwald 
 
 ## What never leaves this machine
 
-- Your task list, notes and due dates, unless a task is synced to Google or Microsoft, in which case that task's content goes there.
+- Your task list, notes and due dates, unless a task is synced to Google or Microsoft, or you have turned on the plan subscription link (in which case scheduled tasks' titles, notes and times go to whatever calendar app polls that URL).
 - Everything Sigwald works out about you, which is the focus queue, the daily briefing, task rankings, skip history, XP and goal progress. All of it is computed locally.
 - Your goals. An install can also project goals in from a local vault through Sigwald's goals API, and that flow only ever comes inward.
 - Logs. Sigwald writes its logs to a table in the local database and to a file on disk.

@@ -129,6 +129,18 @@ model User {
   foods                Food[]
   foodEntries          FoodEntry[]
   jobs                 Job[]
+  calendarSubscription CalendarSubscription?
+}
+
+/// A secret URL that serves one user's plan as an iCalendar feed (lib/ical-out.ts).
+/// Only the SHA-256 of the token is stored; the token is shown once, at creation.
+model CalendarSubscription {
+  id         String    @id @default(cuid())
+  userId     String    @unique
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
 }
 
 model VerificationToken {
