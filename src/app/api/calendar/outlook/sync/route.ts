@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
-import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
-import { getOutlookClient } from "@/lib/outlook-calendar";
-import { syncOutlookCalendar } from "@/lib/outlook-sync";
+import { syncOutlookFeed } from "@/lib/outlook-sync";
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_FEED_COLOR } from "@/lib/calendar-colors";
 
@@ -80,20 +78,17 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Sync events for this calendar
-    const client = await getOutlookClient(accountId, userId);
-    // Before syncing, check and cast the URL
-    if (!feed.url) {
-      return NextResponse.json(
-        { error: "Calendar URL is required" },
-        { status: 400 }
+    // The feed stays even if its first sync fails: the failure is on
+    // feed.error for the UI, and the sync loop tries again.
+    try {
+      await syncOutlookFeed(feed.id);
+    } catch (error) {
+      logger.error(
+        "First sync of an added Outlook calendar failed",
+        { feedId: feed.id, error: error instanceof Error ? error.message : String(error) },
+        LOG_SOURCE
       );
     }
-    await syncOutlookCalendar(
-      client,
-      { id: feed.id, url: feed.url as string },
-      null
-    );
 
     return NextResponse.json(feed);
   } catch (error) {
@@ -143,54 +138,14 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Feed not found" }, { status: 404 });
     }
 
-    logger.error(
-      "Starting Outlook calendar sync",
-      {
-        feedId: String(feedId),
-        timestamp: new Date().toISOString(),
-      },
-      LOG_SOURCE
-    );
-
-    // Get events from Outlook
-    const client = await getOutlookClient(feed.account.id, userId);
-    if (!feed.url) {
-      return NextResponse.json(
-        { error: "Calendar URL is required" },
-        { status: 400 }
-      );
-    }
-    const { processedEventIds, nextSyncToken } = await syncOutlookCalendar(
-      client,
-      { id: feed.id, url: feed.url as string },
-      feed.syncToken,
-      true
-    );
-
-    // Update the feed's sync token
-    if (nextSyncToken) {
-      await prisma.calendarFeed.update({
-        where: { id: feed.id, userId },
-        data: {
-          syncToken: nextSyncToken,
-        },
-      });
+    if (feed.type !== "OUTLOOK" || !feed.url) {
+      return NextResponse.json({ error: "Feed not found" }, { status: 404 });
     }
 
-    // Update the feed's sync status
-    await prisma.calendarFeed.update({
-      where: { id: feed.id, userId },
-      data: {
-        lastSync: newDate(),
-      },
-    });
-
+    const { events } = await syncOutlookFeed(feed.id);
     logger.debug(
       "Completed Outlook calendar sync",
-      {
-        feedId: String(feedId),
-        processedEvents: String(processedEventIds.size),
-      },
+      { feedId: String(feedId), processedEvents: String(events) },
       LOG_SOURCE
     );
 
