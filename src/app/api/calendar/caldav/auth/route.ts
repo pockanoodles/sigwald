@@ -154,20 +154,33 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Successfully connected, add the account to the database
+      // Successfully connected, save the account. An upsert, because connecting
+      // the same account again (a changed app password) must update the row:
+      // (userId, provider, email) is unique, so a create would fail.
       const fullUrl = caldavPath
         ? formatAbsoluteUrl(serverUrl, caldavPath)
         : serverUrl;
+      const credentials = {
+        caldavUrl: fullUrl,
+        caldavUsername: username,
+        accessToken: password, // Store password as access token
+        expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // Set expiry to 1 year from now
+      };
 
-      const account = await prisma.connectedAccount.create({
-        data: {
+      const account = await prisma.connectedAccount.upsert({
+        where: {
+          userId_provider_email: {
+            userId,
+            provider: "CALDAV",
+            email: username,
+          },
+        },
+        update: credentials,
+        create: {
           provider: "CALDAV",
           email: username,
-          caldavUrl: fullUrl,
-          caldavUsername: username,
-          accessToken: password, // Store password as access token
-          userId, // Associate with the current user
-          expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // Set expiry to 1 year from now
+          userId,
+          ...credentials,
         },
       });
 

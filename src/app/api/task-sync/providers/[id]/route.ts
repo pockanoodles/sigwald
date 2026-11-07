@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
+import { findForeignRef, foreignRefMessage } from "@/lib/auth/ownership";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
@@ -133,6 +134,16 @@ export async function PATCH(
     // Parse and validate the request body
     const body = await request.json();
     const validatedData = updateProviderSchema.parse(body);
+
+    const foreign = await findForeignRef(userId, {
+      projectId: validatedData.defaultProjectId,
+    });
+    if (foreign) {
+      return NextResponse.json(
+        { error: foreignRefMessage(foreign) },
+        { status: 404 }
+      );
+    }
 
     // Update the provider
     const updatedProvider = await prisma.taskProvider.update({
