@@ -7,6 +7,9 @@
 #
 # Connection comes from PGHOST, PGUSER, PGPASSWORD and PGDATABASE.
 set -eu
+# The dumps hold every user's data, so only their owner may read them: the
+# script runs as root, and root's default umask would leave them 0644 on the host.
+umask 077
 
 KEEP="${SIGWALD_BACKUP_KEEP:-14}"
 DIR="${SIGWALD_BACKUP_DIR:-/backups}"

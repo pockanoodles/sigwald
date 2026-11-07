@@ -2,6 +2,7 @@ import { Client } from "@microsoft/microsoft-graph-client";
 import type { Prisma } from "@prisma/client";
 
 import { convertToUTC, newDate, newDateFromYMD } from "@/lib/date-utils";
+import { eventRowId, lockFeed } from "@/lib/feed-replace";
 import { logger } from "@/lib/logger";
 import {
   convertOutlookRecurrenceToRRule,
@@ -61,9 +62,17 @@ interface OutlookEvent {
   attendees?: OutlookAttendee[];
   seriesMasterId?: string;
 }
-const now = newDate();
-const timeMin = newDateFromYMD(now.getFullYear() - 1, 0, 1); // 2 years ago, January 1st
-const timeMax = newDateFromYMD(now.getFullYear() + 1, 11, 31); // End of next year
+/**
+ * January 1 of last year through December 31 of next year. Worked out on each
+ * sync, not once at import: the worker runs for months, and a window fixed at
+ * startup would stop reaching new events.
+ */
+export function outlookSyncWindow(now: Date = newDate()) {
+  return {
+    timeMin: newDateFromYMD(now.getFullYear() - 1, 0, 1),
+    timeMax: newDateFromYMD(now.getFullYear() + 1, 11, 31),
+  };
+}
 const PAGE_SIZE = 200;
 
 const LOG_SOURCE = "OutlookSync";
@@ -161,7 +170,10 @@ export async function saveEventToDatabase(
   }
 
   return await prisma.calendarEvent.create({
-    data: eventData as Prisma.CalendarEventCreateInput,
+    data: {
+      ...(eventData as Prisma.CalendarEventCreateInput),
+      id: eventRowId(feedId, externalEventId),
+    },
   });
 }
 
@@ -189,6 +201,7 @@ export async function fetchAllEvents(
     );
     queryParams.push(`$deltatoken=${syncToken}`);
   } else {
+    const { timeMin, timeMax } = outlookSyncWindow();
     queryParams.push(`startDateTime=${timeMin.toISOString()}`);
     queryParams.push(`endDateTime=${timeMax.toISOString()}`);
   }
@@ -256,6 +269,7 @@ export async function fetchEventInstances(
 ) {
   let allInstances = [];
   let nextLink = null;
+  const { timeMin, timeMax } = outlookSyncWindow();
 
   // Initial request
   let response = await client
@@ -365,18 +379,22 @@ export async function processMasterEvent(
   return processedIds;
 }
 
+/**
+ * Applies what changed in Graph since `lastSyncToken` (all events in the window
+ * without one), row by row. Used right after creating or editing an event; the
+ * full sync that replaces a feed's events is `syncOutlookFeed` below.
+ */
 export async function syncOutlookCalendar(
   client: Client,
   feed: { id: string; url: string },
-  lastSyncToken?: string | null,
-  forceFullSync?: boolean
+  lastSyncToken?: string | null
 ) {
   // Fetch all events
   const {
     events: allEvents,
     deletedEventIds,
     nextSyncToken,
-  } = await fetchAllEvents(client, feed.url, lastSyncToken, forceFullSync);
+  } = await fetchAllEvents(client, feed.url, lastSyncToken);
   logger.debug(
     "Fetched events from Outlook",
     {
@@ -386,15 +404,6 @@ export async function syncOutlookCalendar(
     },
     LOG_SOURCE
   );
-  if (forceFullSync) {
-    // delete all events from the database
-    await prisma.calendarEvent.deleteMany({
-      where: {
-        feedId: feed.id,
-      },
-    });
-  }
-
   // Handle deleted events first if this is a delta sync
   if (lastSyncToken && deletedEventIds?.length > 0) {
     for (const eventId of deletedEventIds) {
@@ -486,11 +495,92 @@ export async function syncOutlookCalendar(
   return { processedEventIds, nextSyncToken };
 }
 
+/** A calendar as Graph has it, read in full before the database is touched. */
+export interface OutlookCalendarSnapshot {
+  singles: OutlookEvent[];
+  masters: OutlookEvent[];
+  instances: Map<string, OutlookEvent[]>;
+  nextSyncToken?: string;
+}
+
+/**
+ * Reads every event in the window and every instance of each series. Any
+ * Graph failure (a 429, a timeout, an expired token) throws, so a partial read
+ * never replaces the stored events.
+ */
+export async function fetchOutlookCalendar(
+  client: Client,
+  calendarId: string
+): Promise<OutlookCalendarSnapshot> {
+  const { events, nextSyncToken } = await fetchAllEvents(client, calendarId, null, true);
+  const singles: OutlookEvent[] = [];
+  const masters: OutlookEvent[] = [];
+  for (const event of events as OutlookEvent[]) {
+    if (event.recurrence) masters.push(event);
+    else if (!event.seriesMasterId) singles.push(event);
+  }
+  const instances = new Map<string, OutlookEvent[]>();
+  for (const master of masters) {
+    instances.set(master.id, await fetchEventInstances(client, calendarId, master.id));
+  }
+  return { singles, masters, instances, nextSyncToken };
+}
+
+/**
+ * The feed's rows for a snapshot: one-off events, then each series' master and
+ * its instances, linked by `masterEventId` and carrying the series' RRULE. Row
+ * ids are stable (lib/feed-replace.ts); an event Graph lists twice is written once.
+ */
+export function outlookFeedRows(
+  feedId: string,
+  snapshot: OutlookCalendarSnapshot
+): Prisma.CalendarEventCreateManyInput[] {
+  const rows: Prisma.CalendarEventCreateManyInput[] = [];
+  const seen = new Set<string>();
+  const add = (externalId: string, row: Record<string, unknown>) => {
+    if (seen.has(externalId)) return;
+    seen.add(externalId);
+    rows.push({ ...row, id: eventRowId(feedId, externalId) } as Prisma.CalendarEventCreateManyInput);
+  };
+
+  for (const event of snapshot.singles) {
+    add(event.id, {
+      ...createBaseEventData(event, feedId, false, false),
+      recurrenceRule: null,
+      masterEventId: null,
+      recurringEventId: null,
+    });
+  }
+  for (const master of snapshot.masters) {
+    const rule = master.recurrence
+      ? convertOutlookRecurrenceToRRule(master.recurrence)
+      : null;
+    add(master.id, {
+      ...createBaseEventData(master, feedId, true, true),
+      recurrenceRule: rule,
+      masterEventId: null,
+      recurringEventId: null,
+    });
+    for (const instance of snapshot.instances.get(master.id) ?? []) {
+      add(instance.id, {
+        ...createBaseEventData(instance, feedId, true, false),
+        recurrenceRule: rule,
+        recurringEventId: master.id,
+        masterEventId: eventRowId(feedId, master.id),
+      });
+    }
+  }
+  return rows;
+}
+
+const INSERT_BATCH = 500;
+
 /**
  * Syncs one Outlook feed in full: the feed list's sync button and the
- * background loop (lib/sigwald/job-sync-runner.ts). Graph is read before any
- * row is deleted, so an unreachable Graph keeps the last good events. A
- * failure is written to `CalendarFeed.error` and rethrown.
+ * background loop (lib/sigwald/job-sync-runner.ts). Graph is read completely
+ * first, then the feed's events are replaced in one locked transaction, so a
+ * failed or partial read keeps the last good events. A failure is written to
+ * `CalendarFeed.error` and rethrown.
  */
 export async function syncOutlookFeed(feedId: string): Promise<{ events: number }> {
   const feed = await prisma.calendarFeed.findUnique({ where: { id: feedId } });
@@ -499,21 +589,28 @@ export async function syncOutlookFeed(feedId: string): Promise<{ events: number 
   }
   try {
     const client = await getOutlookClient(feed.accountId, feed.userId);
-    const { processedEventIds, nextSyncToken } = await syncOutlookCalendar(
-      client,
-      { id: feed.id, url: feed.url },
-      feed.syncToken,
-      true
-    );
-    await prisma.calendarFeed.update({
-      where: { id: feed.id },
-      data: {
-        lastSync: newDate(),
-        error: null,
-        ...(nextSyncToken ? { syncToken: nextSyncToken } : {}),
+    const snapshot = await fetchOutlookCalendar(client, feed.url);
+    const rows = outlookFeedRows(feed.id, snapshot);
+    await prisma.$transaction(
+      async (tx) => {
+        await lockFeed(tx, feed.id);
+        await tx.calendarEvent.deleteMany({ where: { feedId: feed.id } });
+        for (let i = 0; i < rows.length; i += INSERT_BATCH) {
+          await tx.calendarEvent.createMany({ data: rows.slice(i, i + INSERT_BATCH) });
+        }
+        await tx.calendarFeed.update({
+          where: { id: feed.id },
+          data: {
+            lastSync: newDate(),
+            error: null,
+            ...(snapshot.nextSyncToken ? { syncToken: snapshot.nextSyncToken } : {}),
+          },
+        });
       },
-    });
-    return { events: processedEventIds.size };
+      { maxWait: 10_000, timeout: 120_000 }
+    );
+    logger.info("Outlook feed synced", { feedId, events: rows.length }, LOG_SOURCE);
+    return { events: rows.length };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     await prisma.calendarFeed

@@ -1,8 +1,8 @@
 import type { calendar_v3 } from "googleapis";
 
 import { getGoogleCalendarClient } from "@/lib/google-calendar";
+import { eventRowId } from "@/lib/feed-replace";
 import {
-  eventRowId,
   processRecurrenceRule,
   syncGoogleFeed,
   syncWindow,
@@ -26,6 +26,7 @@ jest.mock("@/lib/prisma", () => {
       create: jest.fn(async ({ data }: { data: { id?: string } }) => ({ id: data.id ?? `row-${++n}` })),
     },
     calendarFeed: { update: jest.fn() },
+    $executeRaw: jest.fn(async () => 0),
   };
   return {
     prisma: {
@@ -44,6 +45,7 @@ jest.mock("@/lib/logger", () => ({
 type Tx = {
   calendarEvent: { deleteMany: jest.Mock; create: jest.Mock };
   calendarFeed: { update: jest.Mock };
+  $executeRaw: jest.Mock;
 };
 const db = prisma as unknown as {
   calendarFeed: { findUnique: jest.Mock; update: jest.Mock };
@@ -103,6 +105,11 @@ describe("syncGoogleFeed", () => {
 
     expect(result.events).toBe(3);
     expect(db.$transaction).toHaveBeenCalledTimes(1);
+    // The feed is locked before its rows are replaced (lib/feed-replace.ts).
+    expect(tx.$executeRaw).toHaveBeenCalledTimes(1);
+    expect(tx.$executeRaw.mock.invocationCallOrder[0]).toBeLessThan(
+      tx.calendarEvent.deleteMany.mock.invocationCallOrder[0]
+    );
     expect(tx.calendarEvent.deleteMany).toHaveBeenCalledWith({ where: { feedId: "feed-1" } });
     expect(tx.calendarFeed.update).toHaveBeenCalledWith({
       where: { id: "feed-1" },
