@@ -78,6 +78,10 @@ The URL holds a secret token. Anyone who has the link can read that feed, the sa
 
 The only email Sigwald sends is a password reset. When you ask for one, Sigwald asks Resend to deliver a message to your email address with a link that holds a one-time reset token. This runs only on a self-hosted server that has a Resend API key (`RESEND_API_KEY`) and a sender address (`EMAIL_FROM`) set. With the key but no address, the server logs an error and sends nothing. The desktop app signs you in with a token that is made on each launch, so it has no password reset and sends no email.
 
+## Your data
+
+From Settings → Data you can download everything you own in Sigwald as one file. That file goes only to your browser — Sigwald does not send it anywhere else — and it holds your tasks, goals, courses, shifts, people, training, nutrition and settings, but not passwords or connected-account tokens. Importing the same kind of file, or erasing the account under that tab, also stays on this machine.
+
 ---
 
 ## What never leaves this machine
