@@ -8,7 +8,6 @@
  */
 
 import "./load-env";
-import "./register-alias";
 
 import { startSyncLoop } from "@/lib/sigwald/sync-loop";
 import { logger } from "@/lib/logger";

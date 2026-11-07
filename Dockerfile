@@ -34,6 +34,9 @@ RUN test -f src/components/focus/FocusMode.tsx \
 # postinstall generate, and `next build` type-checks against the client.
 RUN npm run prisma:generate
 RUN SIGWALD_STANDALONE=1 npm run build
+# The sync worker, one bundled file (everything but the Prisma client inlined),
+# so the production image runs it without the source or the full node_modules.
+RUN npm run build:worker
 
 # Production stage
 FROM base AS production
@@ -44,6 +47,7 @@ ENV NODE_ENV=production
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/dist/worker ./dist/worker
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 # Prisma CLI + engines so the entrypoint's `npx prisma generate/migrate deploy`
 # resolves locally instead of downloading on every container start.
@@ -53,6 +57,9 @@ COPY --from=builder /app/node_modules/.bin ./node_modules/.bin
 COPY --from=builder /app/prisma ./prisma
 COPY entrypoint.sh .
 RUN chmod +x /app/entrypoint.sh
+# Prove the worker starts against this image's node_modules, not the builder's.
+COPY --from=builder /app/scripts/check-worker-bundle.mjs /tmp/
+RUN node /tmp/check-worker-bundle.mjs dist/worker/worker.js && rm /tmp/check-worker-bundle.mjs
 
 EXPOSE 3000
 
