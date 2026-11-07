@@ -31,5 +31,8 @@
     "electron": "44.4.5",
     "electron-builder": "26.16.1",
     "typescript": "^5.8.2"
+  },
+  "allowScripts": {
+    "electron-winstaller": true
   }
 }

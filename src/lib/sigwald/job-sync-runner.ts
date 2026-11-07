@@ -1,13 +1,16 @@
 /**
  * One tick of background sync (`sync-loop.ts`): CalDAV feeds, iCal
- * subscriptions, then each module's jobs for everyone who has that module on.
+ * subscriptions, Google and Outlook calendars, then each module's jobs for
+ * everyone who has that module on.
  */
 
 import { CalDAVCalendarService } from "@/lib/caldav-calendar";
 import { newDate } from "@/lib/date-utils";
 import { isDue } from "@/lib/sigwald/sync-interval";
+import { syncGoogleFeed } from "@/lib/google-feed-sync";
 import { syncIcalFeed } from "@/lib/ical-feed";
 import { logger } from "@/lib/logger";
+import { syncOutlookFeed } from "@/lib/outlook-sync";
 import { prisma } from "@/lib/prisma";
 
 import { MODULES } from "@/modules";
@@ -102,6 +105,55 @@ export async function runPeriodicCaldavSyncs(): Promise<CaldavSyncRunStats> {
 }
 
 /**
+ * Syncs each enabled Google and Outlook calendar whose last sync is older than
+ * the CalDAV poll interval. Both syncs read the provider before touching rows
+ * and write a failure onto the feed, so a feed that fails keeps its events
+ * and waits for the next tick.
+ */
+export async function runPeriodicProviderSyncs(): Promise<CaldavSyncRunStats> {
+  const now = newDate();
+  const pollMs = caldavPollIntervalMs();
+  const feeds = await prisma.calendarFeed.findMany({
+    where: {
+      type: { in: ["GOOGLE", "OUTLOOK"] },
+      enabled: true,
+      url: { not: null },
+      accountId: { not: null },
+      userId: { not: null },
+    },
+    select: { id: true, type: true, lastSync: true, userId: true },
+  });
+
+  let skipped = 0;
+  let synced = 0;
+  let failed = 0;
+  for (const feed of feeds) {
+    if (!isDue(feed.lastSync, now, pollMs)) {
+      skipped += 1;
+      continue;
+    }
+    try {
+      if (feed.type === "GOOGLE") await syncGoogleFeed(feed.id);
+      else await syncOutlookFeed(feed.id);
+      synced += 1;
+    } catch (error) {
+      failed += 1;
+      logger.error(
+        "Calendar periodic sync failed",
+        {
+          feedId: feed.id,
+          type: feed.type,
+          userId: feed.userId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        LOG_SOURCE
+      );
+    }
+  }
+  return { skipped, synced, failed };
+}
+
+/**
  * Re-reads each enabled iCal subscription whose last sync is older than the
  * CalDAV poll interval. `syncIcalFeed` writes a failure onto the feed and
  * keeps its last good events, so a feed that's down just waits for the next
@@ -187,16 +239,19 @@ export async function runModuleJobs(): Promise<{ ran: number; failed: number }> 
 }
 
 /**
- * One tick of the sync loop: CalDAV, iCal subscriptions, then every module's
+ * One tick of the sync loop: CalDAV, iCal subscriptions, Google and Outlook
+ * calendars, then every module's
  * jobs (Courses' Canvas sync among them, src/modules/courses/server.ts).
  */
 export async function runAllPeriodicSigwaldSyncs(): Promise<{
   caldav: CaldavSyncRunStats;
   ical: CaldavSyncRunStats;
+  providers: CaldavSyncRunStats;
   modules: { ran: number; failed: number };
 }> {
   const caldav = await runPeriodicCaldavSyncs();
   const ical = await runPeriodicIcalSyncs();
+  const providers = await runPeriodicProviderSyncs();
   const modules = await runModuleJobs();
   logger.info(
     "Sigwald periodic sync tick complete",
@@ -206,10 +261,12 @@ export async function runAllPeriodicSigwaldSyncs(): Promise<{
       caldavFailed: caldav.failed,
       icalSynced: ical.synced,
       icalFailed: ical.failed,
+      providerSynced: providers.synced,
+      providerFailed: providers.failed,
       moduleJobsRan: modules.ran,
       moduleJobsFailed: modules.failed,
     },
     LOG_SOURCE
   );
-  return { caldav, ical, modules };
+  return { caldav, ical, providers, modules };
 }
