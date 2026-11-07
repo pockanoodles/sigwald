@@ -90,3 +90,6 @@ __pycache__/
 # Any other env file stays local, the example is the only one tracked
 .env.*
 !.env.example
+
+# Server database copies (docker-compose backup service)
+/backups/
