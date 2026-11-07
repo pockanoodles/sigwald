@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
+import { redactString } from "@/lib/logger/redact";
 import { ServerLogger } from "@/lib/logger/server";
 import { LogEntry, LogLevel } from "@/lib/logger/types";
 
@@ -37,11 +38,13 @@ function normalizeEntry(raw: unknown): LogEntry | null {
 
   return {
     level: e.level as LogLevel,
-    message: e.message.slice(0, MAX_MESSAGE_CHARS),
+    // Redact before truncating: a cut can drop the closing quote the
+    // credential patterns need, leaving part of a secret unredacted.
+    message: redactString(e.message).slice(0, MAX_MESSAGE_CHARS),
     metadata,
     source:
       typeof e.source === "string"
-        ? e.source.slice(0, MAX_SOURCE_CHARS)
+        ? redactString(e.source).slice(0, MAX_SOURCE_CHARS)
         : undefined,
     timestamp,
   };
