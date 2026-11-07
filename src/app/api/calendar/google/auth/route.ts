@@ -33,9 +33,10 @@ export async function GET(request: NextRequest) {
   const oauth2Client = await createGoogleOAuthClient(app);
   const url = oauth2Client.generateAuthUrl({
     access_type: "offline",
+    // `calendar` already covers events; asking for `calendar.events` too only
+    // added a line to the consent screen.
     scope: [
       "https://www.googleapis.com/auth/calendar",
-      "https://www.googleapis.com/auth/calendar.events",
       "https://www.googleapis.com/auth/userinfo.email",
       "https://www.googleapis.com/auth/tasks",
     ],
