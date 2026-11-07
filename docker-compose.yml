@@ -17,6 +17,10 @@ services:
       # Next standalone binds this host; without it the server can bind
       # localhost-only inside the container and break the port mapping.
       - HOSTNAME=0.0.0.0
+      # Explicit, because .env's empty SIGWALD_MATERIALS_DIR= would override the image.
+      - SIGWALD_MATERIALS_DIR=/data/materials
+    volumes:
+      - materials:/data/materials
     depends_on:
       db:
         condition: service_healthy
@@ -44,6 +48,7 @@ services:
       - .env
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-sigwald}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-sigwald}
+      - SIGWALD_MATERIALS_DIR=/data/materials
     depends_on:
       db:
         condition: service_healthy
@@ -54,6 +59,8 @@ services:
     # migrations, and the worker waits for it above.
     entrypoint: ["node", "dist/worker/worker.js"]
     command: []
+    volumes:
+      - materials:/data/materials
     restart: unless-stopped
 
   db:
@@ -99,3 +106,6 @@ services:
 
 volumes:
   postgres_dev_data:
+  # Downloaded Canvas files, shared by the app (serves them) and the worker
+  # (downloads them).
+  materials:
