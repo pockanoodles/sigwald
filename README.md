@@ -338,7 +338,7 @@ It keeps its own backups in the data folder: one a day while it's open (14 kept)
 | `npm run test:unit` | Jest, including the module boundary test |
 | `npm run type-check` / `npm run lint` | TypeScript and ESLint |
 | `npm run build` | The production build, then a check that no server code reached the browser bundle |
-| `npm run build:worker` | Compiles the background sync worker into `dist/` |
+| `npm run build:worker` | Bundles the background sync worker into `dist/worker/worker.js` |
 | `npm run build:desktop` | Builds the server for the desktop app into `desktop/.stage` |
 | `npm run desktop:start` | Runs the desktop shell against that build (after `npm --prefix desktop install`) |
 | `node scripts/brand-assets.mjs` | Regenerates every icon from `brand/` |

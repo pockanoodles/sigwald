@@ -31,15 +31,15 @@ services:
     restart: unless-stopped
 
   # The sync worker: periodic Canvas, CalDAV, iCal, Google and Outlook sync for all eligible
-  # users/feeds on a timer (src/lib/sigwald/sync-loop.ts). Shares the app image
-  # (development stage) so src/lib/sigwald/* and src/worker/* are present.
-  # A separate process so sync runs outside the web server; a single
-  # container can set SIGWALD_SCHEDULER=inprocess and drop this service.
+  # users/feeds on a timer (src/lib/sigwald/sync-loop.ts). The same production
+  # image as the app, which carries the worker as one bundled file. A separate
+  # process so sync runs outside the web server; a single container can set
+  # SIGWALD_SCHEDULER=inprocess and drop this service.
   worker:
     build:
       context: .
       dockerfile: Dockerfile
-      target: development
+      target: production
     env_file:
       - .env
     environment:
@@ -50,10 +50,10 @@ services:
       # Wait for the app so migrations have applied before the worker queries.
       app:
         condition: service_healthy
-    # Override the app entrypoint (which runs migrate deploy) — the app owns
-    # migrations. Here: generate the client, compile the worker, then run it.
-    entrypoint: ["/bin/sh", "-c"]
-    command: ["npx --yes prisma generate && npm run build:worker && npm run start:worker"]
+    # Not the app's entrypoint (which runs migrate deploy): the app owns
+    # migrations, and the worker waits for it above.
+    entrypoint: ["node", "dist/worker/worker.js"]
+    command: []
     restart: unless-stopped
 
   db:
