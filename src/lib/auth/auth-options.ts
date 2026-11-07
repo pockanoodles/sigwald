@@ -1,12 +1,8 @@
 import { NextAuthOptions } from "next-auth";
-import AzureADProvider from "next-auth/providers/azure-ad";
 import CredentialsProvider from "next-auth/providers/credentials";
-import GoogleProvider from "next-auth/providers/google";
 
-import { getGoogleCredentials, getOutlookCredentials } from "@/lib/auth";
 import { authenticateUser } from "@/lib/auth/credentials-provider";
 import { logger } from "@/lib/logger";
-import { MICROSOFT_GRAPH_SCOPES } from "@/lib/outlook";
 
 // Define a type for our user with role
 interface UserWithRole {
@@ -21,10 +17,6 @@ const LOG_SOURCE = "AuthOptions";
 
 // Create a function to get the auth options with the credentials
 export async function getAuthOptions(): Promise<NextAuthOptions> {
-  // Get credentials from database or environment variables
-  const googleCredentials = await getGoogleCredentials();
-  const outlookCredentials = await getOutlookCredentials();
-
   // Sessions are JWTs signed with this key, so anyone who knows it can mint a
   // valid session for any user. Upstream shipped a hardcoded fallback here,
   // which meant an install that forgot the variable silently signed sessions
@@ -46,30 +38,11 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
     secret,
 
     providers: [
-      // Keep existing providers for calendar connections
-      GoogleProvider({
-        clientId: googleCredentials.clientId,
-        clientSecret: googleCredentials.clientSecret,
-        authorization: {
-          params: {
-            scope:
-              "openid email https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/tasks",
-            prompt: "consent",
-            access_type: "offline",
-            response_type: "code",
-          },
-        },
-      }),
-      AzureADProvider({
-        clientId: outlookCredentials.clientId,
-        clientSecret: outlookCredentials.clientSecret,
-        tenantId: outlookCredentials.tenantId,
-        authorization: {
-          params: {
-            scope: MICROSOFT_GRAPH_SCOPES.join(" "),
-          },
-        },
-      }),
+      // Email + password is the only way in. Google and Microsoft are
+      // calendar connections (api/calendar/google, api/calendar/outlook), not
+      // sign-in: there is no adapter, so an OAuth sign-in here would mint a
+      // session for any Google or Microsoft account, whose subject matches no
+      // user (2026-11-07).
       // Add credentials provider for email/password authentication
       CredentialsProvider({
         name: "Credentials",
@@ -103,18 +76,7 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
       }),
     ],
     callbacks: {
-      async jwt({ token, account, profile, user }) {
-        // Initial sign in
-        if (account && profile) {
-          return {
-            ...token,
-            accessToken: account.access_token,
-            refreshToken: account.refresh_token,
-            expiresAt: account.expires_at,
-            provider: account.provider,
-          };
-        }
-
+      async jwt({ token, user }) {
         // Include user role in the token if available
         if (user) {
           // Add role from user object to token
@@ -130,13 +92,7 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
           session.user.role = token.role;
         }
 
-        return {
-          ...session,
-          accessToken: token.accessToken,
-          refreshToken: token.refreshToken,
-          expiresAt: token.expiresAt,
-          provider: token.provider,
-        };
+        return session;
       },
     },
     pages: {
