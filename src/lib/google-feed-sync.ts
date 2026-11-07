@@ -125,9 +125,16 @@ export async function writeFeedEvents(
     masterRows.set(recurringId, { id: row.id, rule });
   }
 
+  // Google shouldn't list an event twice, but one repeat would fail the whole
+  // transaction on the row id, so a repeat is skipped.
+  const seen = new Set<string>(masters.keys());
   let written = masterRows.size;
   for (const event of events) {
     if (!hasStart(event)) continue;
+    if (event.id) {
+      if (seen.has(event.id)) continue;
+      seen.add(event.id);
+    }
     const base = eventRecord(event, feedId);
     const master = event.recurringEventId
       ? masterRows.get(event.recurringEventId)

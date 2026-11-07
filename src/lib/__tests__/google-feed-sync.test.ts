@@ -183,6 +183,11 @@ describe("writeFeedEvents", () => {
     expect(ids[2]).not.toBe(ids[0]);
   });
 
+  it("skips an event Google lists twice", async () => {
+    await writeFeedEvents(tx as never, "feed-1", [single, single], new Map());
+    expect(tx.calendarEvent.create).toHaveBeenCalledTimes(1);
+  });
+
   it("still writes an instance whose master couldn't be read", async () => {
     await writeFeedEvents(tx as never, "feed-1", [instance], new Map());
     const [row] = tx.calendarEvent.create.mock.calls.map((c) => c[0].data);
