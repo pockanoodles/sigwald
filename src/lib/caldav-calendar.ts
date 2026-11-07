@@ -34,6 +34,9 @@ import {
 
 const LOG_SOURCE = "CalDAVCalendar";
 
+/** The slice of the (extended) Prisma client that sync writes go through, so they can run inside a transaction. */
+type SyncDb = Pick<typeof prisma, "calendarEvent">;
+
 /**
  * Build a RECURRENCE-ID / EXDATE property that points at a single instance of a
  * recurring master, using the SAME value type as the master's DTSTART so the
@@ -228,30 +231,13 @@ export class CalDAVCalendarService {
     end: Date,
     calendarPath: string
   ): Promise<CalendarEvent[]> {
-    try {
-      // Fetch master events (without expand)
-      const masterEvents = await this.fetchMasterEvents(
-        start,
-        end,
-        calendarPath
-      );
+    // Failures propagate: an empty list means "the calendar is empty", never
+    // "the fetch failed", or a sync would wipe the feed on any outage.
+    const masterEvents = await this.fetchMasterEvents(start, end, calendarPath);
 
-      const instanceEvents = await this.expandRecurringEvents(masterEvents);
+    const instanceEvents = await this.expandRecurringEvents(masterEvents);
 
-      const allEvents = [...masterEvents, ...instanceEvents];
-      return allEvents;
-    } catch (error) {
-      logger.error(
-        "Failed to fetch CalDAV events",
-        {
-          error: error instanceof Error ? error.message : "Unknown error",
-          accountId: this.account.id,
-          calendarPath,
-        },
-        LOG_SOURCE
-      );
-      return [];
-    }
+    return [...masterEvents, ...instanceEvents];
   }
 
   /**
@@ -540,45 +526,44 @@ export class CalDAVCalendarService {
         }
       }
 
-      //delete all events from the database
-      await prisma.calendarEvent.deleteMany({
-        where: {
-          feedId: feed.id,
-        },
-      });
-
-      // Get existing events for this feed
-      // const existingEvents = await this.getExistingEvents(feed.id);
-
       // Define time range for events (1 year back to 1 year ahead)
       const timeRange = this.getTimeRange();
 
-      // Fetch events from CalDAV server
+      // Fetch first. Nothing is deleted until the server has answered, so a
+      // failed fetch leaves the feed's last good events in place.
       const events = await this.getEvents(
         timeRange.start,
         timeRange.end,
         calendarPath
       );
 
-      // Process events and update database
-      // const result = await this.processEvents(events, existingEvents, feed.id);
-
-      const result = await this.createAllEvents(events, feed.id);
-
       const newCtag =
         !forceFullSync && this.account.caldavUrl
           ? await this.readCtag(calendarPath)
           : remoteCtag;
 
-      // Update the feed's last sync time and sync token
-      await prisma.calendarFeed.update({
-        where: { id: feed.id, userId },
-        data: {
-          lastSync: newDate(),
-          syncToken: feed.syncToken ? String(feed.syncToken) : null,
-          ...(newCtag ? { ctag: newCtag } : {}),
+      // Replace the feed's events atomically: either all of the new set lands
+      // or the old set stays.
+      const result = await prisma.$transaction(
+        async (tx) => {
+          await tx.calendarEvent.deleteMany({ where: { feedId: feed.id } });
+
+          const created = await this.createAllEvents(events, feed.id, tx);
+
+          await tx.calendarFeed.update({
+            where: { id: feed.id, userId },
+            data: {
+              lastSync: newDate(),
+              error: null,
+              syncToken: feed.syncToken ? String(feed.syncToken) : null,
+              ...(newCtag ? { ctag: newCtag } : {}),
+            },
+          });
+
+          return created;
         },
-      });
+        { maxWait: 10_000, timeout: 120_000 }
+      );
 
       return result;
     } catch (error) {
@@ -591,6 +576,17 @@ export class CalDAVCalendarService {
         },
         LOG_SOURCE
       );
+      // Record the failure on the feed, but leave ctag, syncToken, lastSync
+      // and the stored events alone so the next sync retries from scratch.
+      await prisma.calendarFeed
+        .updateMany({
+          where: { id: feedId, userId },
+          data: {
+            error:
+              error instanceof Error ? error.message : "Failed to sync CalDAV",
+          },
+        })
+        .catch(() => undefined);
       throw error;
     }
   }
@@ -1085,61 +1081,52 @@ export class CalDAVCalendarService {
 
   private async createAllEvents(
     events: CalendarEvent[],
-    feedId: string
+    feedId: string,
+    db: SyncDb
   ): Promise<SyncResult> {
-    try {
-      // Separate master events and instances
-      const masterEvents = events.filter((e) => e.isMaster);
-      const instanceEvents = events.filter((e) => !e.isMaster);
+    // Separate master events and instances
+    const masterEvents = events.filter((e) => e.isMaster);
+    const instanceEvents = events.filter((e) => !e.isMaster);
 
-      // Create master events first
-      const createdMasterEvents = await this.createMasterEvents(
-        masterEvents,
-        feedId
-      );
+    // Create master events first
+    const createdMasterEvents = await this.createMasterEvents(
+      masterEvents,
+      feedId,
+      db
+    );
 
-      // Create a map of external IDs to database IDs for linking instances
-      const masterEventMap = new Map<string, string>();
-      // Slots the master rows already occupy under the (feed, external id, start)
-      // key. An instance landing on one of these would upsert the master row into
-      // an instance of itself, so those are dropped before the write.
-      const masterEventSlots = new Set<string>();
-      for (const event of createdMasterEvents) {
-        if (event.externalEventId) {
-          masterEventMap.set(event.externalEventId, event.id);
-          masterEventSlots.add(
-            `${event.externalEventId}|${event.start.getTime()}`
-          );
-        }
+    // Create a map of external IDs to database IDs for linking instances
+    const masterEventMap = new Map<string, string>();
+    // Slots the master rows already occupy under the (feed, external id, start)
+    // key. An instance landing on one of these would upsert the master row into
+    // an instance of itself, so those are dropped before the write.
+    const masterEventSlots = new Set<string>();
+    for (const event of createdMasterEvents) {
+      if (event.externalEventId) {
+        masterEventMap.set(event.externalEventId, event.id);
+        masterEventSlots.add(
+          `${event.externalEventId}|${event.start.getTime()}`
+        );
       }
-
-      // Create instance events with proper links to master events
-      const createdInstanceEvents = await this.createInstanceEvents(
-        instanceEvents.filter(
-          (e) =>
-            !e.externalEventId ||
-            !masterEventSlots.has(`${e.externalEventId}|${e.start.getTime()}`)
-        ),
-        masterEventMap,
-        feedId
-      );
-
-      return {
-        added: [...createdMasterEvents, ...createdInstanceEvents],
-        updated: [],
-        deleted: [],
-      };
-    } catch (error) {
-      logger.error(
-        "Failed to create CalDAV events",
-        {
-          error: error instanceof Error ? error.message : "Unknown error",
-          feedId,
-        },
-        LOG_SOURCE
-      );
-      return { added: [], updated: [], deleted: [] };
     }
+
+    // Create instance events with proper links to master events
+    const createdInstanceEvents = await this.createInstanceEvents(
+      instanceEvents.filter(
+        (e) =>
+          !e.externalEventId ||
+          !masterEventSlots.has(`${e.externalEventId}|${e.start.getTime()}`)
+      ),
+      masterEventMap,
+      feedId,
+      db
+    );
+
+    return {
+      added: [...createdMasterEvents, ...createdInstanceEvents],
+      updated: [],
+      deleted: [],
+    };
   }
 
   /**
@@ -1150,15 +1137,16 @@ export class CalDAVCalendarService {
    * deliberately left unconstrained.
    */
   private async persistSyncedEvent(
-    eventData: Prisma.CalendarEventUncheckedCreateInput
+    eventData: Prisma.CalendarEventUncheckedCreateInput,
+    db: SyncDb
   ): Promise<CalendarEvent> {
     const { feedId, externalEventId, start } = eventData;
 
     if (!externalEventId) {
-      return prisma.calendarEvent.create({ data: eventData });
+      return db.calendarEvent.create({ data: eventData });
     }
 
-    return prisma.calendarEvent.upsert({
+    return db.calendarEvent.upsert({
       where: {
         feedId_externalEventId_start: { feedId, externalEventId, start },
       },
@@ -1171,50 +1159,39 @@ export class CalDAVCalendarService {
 
   private async createMasterEvents(
     masterEvents: CalendarEvent[],
-    feedId: string
+    feedId: string,
+    db: SyncDb
   ): Promise<CalendarEvent[]> {
     const createdEvents: CalendarEvent[] = [];
 
     // Process events in batches to avoid potential issues with large datasets
     for (const event of masterEvents) {
-      try {
-        // Prepare event data for database
-        const eventData = {
-          feedId,
-          externalEventId: event.externalEventId,
-          title: event.title || "Untitled Event",
-          description: event.description,
-          start: event.start,
-          end: event.end,
-          location: event.location,
-          isRecurring: event.isRecurring || false,
-          recurrenceRule: event.recurrenceRule,
-          allDay: event.allDay || false,
-          status: event.status,
-          transparency: event.transparency ?? "OPAQUE",
-          isMaster: true,
-          masterEventId: null,
-          recurringEventId: null,
-          // Use Prisma.JsonNull for JSON fields
-          organizer: Prisma.JsonNull,
-          attendees: Prisma.JsonNull,
-        };
+      // Prepare event data for database
+      const eventData = {
+        feedId,
+        externalEventId: event.externalEventId,
+        title: event.title || "Untitled Event",
+        description: event.description,
+        start: event.start,
+        end: event.end,
+        location: event.location,
+        isRecurring: event.isRecurring || false,
+        recurrenceRule: event.recurrenceRule,
+        allDay: event.allDay || false,
+        status: event.status,
+        transparency: event.transparency ?? "OPAQUE",
+        isMaster: true,
+        masterEventId: null,
+        recurringEventId: null,
+        // Use Prisma.JsonNull for JSON fields
+        organizer: Prisma.JsonNull,
+        attendees: Prisma.JsonNull,
+      };
 
-        // Create the event
-        const createdEvent = await this.persistSyncedEvent(eventData);
+      // Create the event
+      const createdEvent = await this.persistSyncedEvent(eventData, db);
 
-        createdEvents.push(createdEvent);
-      } catch (error) {
-        logger.error(
-          "Failed to create master event",
-          {
-            error: error instanceof Error ? error.message : "Unknown error",
-            eventId: event.id,
-            title: event.title,
-          },
-          LOG_SOURCE
-        );
-      }
+      createdEvents.push(createdEvent);
     }
 
     return createdEvents;
@@ -1223,60 +1200,48 @@ export class CalDAVCalendarService {
   private async createInstanceEvents(
     instanceEvents: CalendarEvent[],
     masterEventMap: Map<string, string>,
-    feedId: string
+    feedId: string,
+    db: SyncDb
   ): Promise<CalendarEvent[]> {
     const createdEvents: CalendarEvent[] = [];
 
     // Process events in batches to avoid potential issues with large datasets
     for (const event of instanceEvents) {
-      try {
-        // Find the master event ID for this instance
-        let masterEventId = null;
-        if (
-          event.recurringEventId &&
-          masterEventMap.has(event.recurringEventId)
-        ) {
-          masterEventId = masterEventMap.get(event.recurringEventId) || null;
-        }
-
-        // Prepare event data for database
-        const eventData = {
-          feedId,
-          externalEventId: event.externalEventId,
-          title: event.title || "Untitled Event",
-          description: event.description,
-          start: event.start,
-          end: event.end,
-          location: event.location,
-          isRecurring: event.isRecurring || false, // Instance events are not recurring themselves
-          recurrenceRule: event.recurrenceRule, // Instance events don't have recurrence rules
-          allDay: event.allDay || false,
-          status: event.status,
-          transparency: event.transparency ?? "OPAQUE",
-          isMaster: false,
-          masterEventId,
-          recurringEventId: event.recurringEventId,
-          // Use Prisma.JsonNull for JSON fields
-          organizer: Prisma.JsonNull,
-          attendees: Prisma.JsonNull,
-        };
-
-        // Create the event
-        const createdEvent = await this.persistSyncedEvent(eventData);
-
-        createdEvents.push(createdEvent);
-      } catch (error) {
-        logger.error(
-          "Failed to create instance event",
-          {
-            error: error instanceof Error ? error.message : "Unknown error",
-            eventId: event.id,
-            title: event.title,
-            recurringEventId: event.recurringEventId,
-          },
-          LOG_SOURCE
-        );
+      // Find the master event ID for this instance
+      let masterEventId = null;
+      if (
+        event.recurringEventId &&
+        masterEventMap.has(event.recurringEventId)
+      ) {
+        masterEventId = masterEventMap.get(event.recurringEventId) || null;
       }
+
+      // Prepare event data for database
+      const eventData = {
+        feedId,
+        externalEventId: event.externalEventId,
+        title: event.title || "Untitled Event",
+        description: event.description,
+        start: event.start,
+        end: event.end,
+        location: event.location,
+        isRecurring: event.isRecurring || false, // Instance events are not recurring themselves
+        recurrenceRule: event.recurrenceRule, // Instance events don't have recurrence rules
+        allDay: event.allDay || false,
+        status: event.status,
+        transparency: event.transparency ?? "OPAQUE",
+        isMaster: false,
+        masterEventId,
+        recurringEventId: event.recurringEventId,
+        // Use Prisma.JsonNull for JSON fields
+        organizer: Prisma.JsonNull,
+        attendees: Prisma.JsonNull,
+      };
+
+      // Create the event
+      const createdEvent = await this.persistSyncedEvent(eventData, db);
+
+      createdEvents.push(createdEvent);
     }
 
     return createdEvents;
