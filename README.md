@@ -226,7 +226,7 @@ Every release file is listed in `SHA256SUMS.txt` and carries a signed record of 
 
 ## Run from source
 
-You need Node 20. Nothing else has to be installed.
+You need Node 24 (the version in `.nvmrc`). Nothing else has to be installed.
 
 ```bash
 git clone https://github.com/pockanoodles/sigwald && cd sigwald
@@ -251,9 +251,9 @@ Compose refuses to start without `POSTGRES_PASSWORD`, and there is no default. I
 
 Password reset email needs `RESEND_API_KEY` and `EMAIL_FROM`, an address on a domain you have verified in Resend. Without `EMAIL_FROM` the server logs an error and sends nothing. The desktop app sends no email.
 
-Background sync runs on a timer in the `worker` service, every 15 minutes by default (`SIGWALD_BACKGROUND_SYNC_INTERVAL_MS`). A single container can set `SIGWALD_SCHEDULER=inprocess` instead, which runs the same loop inside the app. Run one or the other, because running both syncs everything twice.
+Background sync (Canvas, CalDAV, iCal, Google and Outlook) runs on a timer in the `worker` service, every 15 minutes by default (`SIGWALD_BACKGROUND_SYNC_INTERVAL_MS`). A single container can set `SIGWALD_SCHEDULER=inprocess` instead, which runs the same loop inside the app. Run one or the other, because running both syncs everything twice.
 
-Back up the database yourself, because a server keeps no copies of its own. `docker compose exec db pg_dump -U sigwald -Fc sigwald > sigwald-$(date +%F).dump` makes one, `pg_restore` puts it back, and `SIGWALD_SECRET_KEY` has to travel with it.
+The `backup` service writes one database copy a day to the `backups` folder next to `docker-compose.yml` and keeps 14 (`SIGWALD_BACKUP_KEEP` changes that). Each copy is checked with `pg_restore --list` before it counts. They sit on the same disk as the database, so copy the folder to another machine now and then, and keep `SIGWALD_SECRET_KEY` with them. To restore one, stop the app and worker, then run `docker compose exec -T db pg_restore -U sigwald -d sigwald --clean --if-exists < backups/sigwald-2026-11-07.dump`.
 
 ## On a phone
 
