@@ -30,7 +30,7 @@ services:
       start_period: 60s
     restart: unless-stopped
 
-  # The sync worker: periodic Canvas + CalDAV sync for all eligible
+  # The sync worker: periodic Canvas, CalDAV, iCal, Google and Outlook sync for all eligible
   # users/feeds on a timer (src/lib/sigwald/sync-loop.ts). Shares the app image
   # (development stage) so src/lib/sigwald/* and src/worker/* are present.
   # A separate process so sync runs outside the web server; a single
@@ -74,6 +74,27 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
+
+  # A database copy a day into ./backups, 14 kept (docker/backup.sh), so a
+  # server keeps its own copies the way the desktop app does. They sit on the
+  # same disk, so copy the folder elsewhere too. Same image as db, so pg_dump
+  # matches the server's major version.
+  backup:
+    image: postgres:16-alpine
+    environment:
+      - PGHOST=db
+      - PGUSER=${POSTGRES_USER:-sigwald}
+      - PGPASSWORD=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      - PGDATABASE=${POSTGRES_DB:-sigwald}
+      - SIGWALD_BACKUP_KEEP=${SIGWALD_BACKUP_KEEP:-14}
+    volumes:
+      - ./backups:/backups
+      - ./docker/backup.sh:/backup.sh:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "/backup.sh"]
     restart: unless-stopped
 
 volumes:
