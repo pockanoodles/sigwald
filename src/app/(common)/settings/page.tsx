@@ -9,6 +9,7 @@ import {
 import { AutoScheduleSettings } from "@/components/settings/AutoScheduleSettings";
 import { BackupSettings } from "@/components/settings/BackupSettings";
 import { CalendarSettings } from "@/components/settings/CalendarSettings";
+import { CalendarSubscriptionSettings } from "@/components/settings/CalendarSubscriptionSettings";
 import { ImportExportSettings } from "@/components/settings/ImportExportSettings";
 import { LogViewer } from "@/components/settings/LogViewer";
 import { SystemSettings } from "@/components/settings/SystemSettings";
@@ -156,7 +157,12 @@ export default function SettingsPage() {
       case "user":
         return <UserSettings />;
       case "calendar":
-        return <CalendarSettings />;
+        return (
+          <div className="space-y-12">
+            <CalendarSettings />
+            <CalendarSubscriptionSettings />
+          </div>
+        );
       case "auto-schedule":
         return <AutoScheduleSettings />;
       case "task-sync":
