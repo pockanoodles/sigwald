@@ -92,3 +92,8 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=4096
         run: npm run build
+
+      # The worker runs tsc output under plain Node, which neither Jest nor
+      # next build exercises; load every worker module the way prod does.
+      - name: Worker modules load under plain Node
+        run: npm run build:worker && node scripts/check-worker-requires.mjs
