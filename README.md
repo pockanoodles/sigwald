@@ -329,6 +329,8 @@ The desktop app is Electron around the same Next.js server. On launch it opens a
 
 It keeps its own backups in the data folder: one a day while it's open (14 kept), one before any migration that changes the database (5 kept), and one whenever you press Back up now in Settings (10 kept). Help, Show backups opens the folder, and Settings, Backups restores one: the app restarts into that copy and keeps the database it replaced beside it. The copies stay on the same disk, so copy the folder somewhere else now and then.
 
+For a full copy of one account (or to wipe it), use Settings → Data: download everything, import into an empty account, or erase the account's data while keeping the sign-in.
+
 ## Development
 
 | Command | What it does |
