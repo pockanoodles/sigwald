@@ -13,16 +13,7 @@ const config = {
   // generated .d.ts in its own TypeScript program (~3.5 GB each).
   transform: {
     "^.+\\.tsx?$": ["ts-jest", { isolatedModules: true }],
-    // sanitize-html 2.18 pulls an ESM-only htmlparser2 and its helpers;
-    // transpile just those to CommonJS (see transformIgnorePatterns).
-    "^.+\\.m?js$": [
-      "ts-jest",
-      { isolatedModules: true, tsconfig: { allowJs: true, module: "commonjs" } },
-    ],
   },
-  transformIgnorePatterns: [
-    "/node_modules/(?!(?:sanitize-html/node_modules/)?(htmlparser2|domhandler|domutils|dom-serializer|domelementtype|entities)/)",
-  ],
 
   // Jest defaults to cpus-1 workers (9 here) and V8 allows each ~4.2 GB, i.e.
   // ~38 GB of sanctioned heap on a 16 GB machine. Cap both so a runaway test
