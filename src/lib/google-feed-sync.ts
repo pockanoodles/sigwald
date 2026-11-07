@@ -16,9 +16,9 @@
  * its id across syncs and a calendar left open can still edit or delete it.
  */
 import type { calendar_v3 } from "googleapis";
-import { v5 as uuidv5 } from "uuid";
 
 import { createAllDayDate, newDate, newDateFromYMD } from "@/lib/date-utils";
+import { eventRowId, lockFeed } from "@/lib/feed-replace";
 import { getGoogleCalendarClient } from "@/lib/google-calendar";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -92,11 +92,6 @@ function eventRecord(event: GoogleEvent, feedId: string) {
 }
 
 const hasStart = (e: GoogleEvent) => !!(e.start?.dateTime || e.start?.date);
-
-/** The same Google event in the same feed always gets the same row id. */
-export function eventRowId(feedId: string, externalId: string): string {
-  return uuidv5(externalId, uuidv5(feedId, uuidv5.URL));
-}
 
 /** Replaces a feed's events with `events`, masters first. Returns rows written. */
 export async function writeFeedEvents(
@@ -208,6 +203,7 @@ export async function syncGoogleFeed(feedId: string): Promise<{ events: number }
     const { events, masters } = await fetchFromGoogle(client, feed.url);
     const written = await prisma.$transaction(
       async (tx) => {
+        await lockFeed(tx, feed.id);
         const n = await writeFeedEvents(tx, feed.id, events, masters);
         await tx.calendarFeed.update({
           where: { id: feed.id },

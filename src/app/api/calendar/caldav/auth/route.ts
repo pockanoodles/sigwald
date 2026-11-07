@@ -154,9 +154,11 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Successfully connected, save the account. An upsert, because connecting
-      // the same account again (a changed app password) must update the row:
-      // (userId, provider, email) is unique, so a create would fail.
+      // Successfully connected, save the account. Connecting the same account
+      // again (a changed app password) updates its row. The row is keyed by
+      // username alone ((userId, provider, email) is unique), so the same
+      // username on a *different* server is refused: updating would point the
+      // first server's feeds at the second.
       const fullUrl = caldavPath
         ? formatAbsoluteUrl(serverUrl, caldavPath)
         : serverUrl;
@@ -167,22 +169,35 @@ export async function POST(request: NextRequest) {
         expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // Set expiry to 1 year from now
       };
 
-      const account = await prisma.connectedAccount.upsert({
-        where: {
-          userId_provider_email: {
-            userId,
-            provider: "CALDAV",
-            email: username,
-          },
-        },
-        update: credentials,
-        create: {
-          provider: "CALDAV",
-          email: username,
-          userId,
-          ...credentials,
-        },
+      const key = {
+        userId_provider_email: { userId, provider: "CALDAV", email: username },
+      };
+      const existing = await prisma.connectedAccount.findUnique({
+        where: key,
+        select: { id: true, caldavUrl: true },
       });
+      if (existing && existing.caldavUrl !== fullUrl) {
+        return NextResponse.json(
+          {
+            error:
+              "This username is already connected on another CalDAV server. Remove that account first.",
+          },
+          { status: 409 }
+        );
+      }
+      const account = existing
+        ? await prisma.connectedAccount.update({
+            where: { id: existing.id },
+            data: credentials,
+          })
+        : await prisma.connectedAccount.create({
+            data: {
+              provider: "CALDAV",
+              email: username,
+              userId,
+              ...credentials,
+            },
+          });
 
       logger.info(
         "Successfully added CalDAV account",
