@@ -7,11 +7,16 @@
  * the replace is one transaction, so a failed sync keeps the feed's last good
  * events and records the failure on `CalendarFeed.error`.
  *
- * Recurring series keep a master row (`isMaster`, carrying the RRULE) and
- * instance rows linked to it by `masterEventId`: deleting a series removes the
- * master and the cascade takes its instances (lib/calendar-db.ts).
+ * Recurring series keep a master row (`isMaster`) and instance rows linked to
+ * it by `masterEventId`: deleting a series removes the master and the cascade
+ * takes its instances (lib/calendar-db.ts). Instances also carry the master's
+ * RRULE, which the event editor reads from the event it opens.
+ *
+ * Row ids are derived from the feed and Google's event id, so an event keeps
+ * its id across syncs and a calendar left open can still edit or delete it.
  */
 import type { calendar_v3 } from "googleapis";
+import { v5 as uuidv5 } from "uuid";
 
 import { createAllDayDate, newDate, newDateFromYMD } from "@/lib/date-utils";
 import { getGoogleCalendarClient } from "@/lib/google-calendar";
@@ -88,6 +93,11 @@ function eventRecord(event: GoogleEvent, feedId: string) {
 
 const hasStart = (e: GoogleEvent) => !!(e.start?.dateTime || e.start?.date);
 
+/** The same Google event in the same feed always gets the same row id. */
+export function eventRowId(feedId: string, externalId: string): string {
+  return uuidv5(externalId, uuidv5(feedId, uuidv5.URL));
+}
+
 /** Replaces a feed's events with `events`, masters first. Returns rows written. */
 export async function writeFeedEvents(
   db: Db,
@@ -97,39 +107,41 @@ export async function writeFeedEvents(
 ): Promise<number> {
   await db.calendarEvent.deleteMany({ where: { feedId } });
 
-  const masterIds = new Map<string, string>();
+  const masterRows = new Map<string, { id: string; rule?: string }>();
   for (const [recurringId, master] of masters) {
     if (!hasStart(master)) continue;
     const base = eventRecord(master, feedId);
+    const rule = processRecurrenceRule(master.recurrence, base.start);
     const row = await db.calendarEvent.create({
       data: {
         ...base,
+        id: eventRowId(feedId, recurringId),
         externalEventId: recurringId,
         isRecurring: true,
         isMaster: true,
-        recurrenceRule: processRecurrenceRule(master.recurrence, base.start),
+        recurrenceRule: rule,
       },
     });
-    masterIds.set(recurringId, row.id);
+    masterRows.set(recurringId, { id: row.id, rule });
   }
 
-  let written = masterIds.size;
+  let written = masterRows.size;
   for (const event of events) {
     if (!hasStart(event)) continue;
     const base = eventRecord(event, feedId);
-    const masterEventId = event.recurringEventId
-      ? masterIds.get(event.recurringEventId)
+    const master = event.recurringEventId
+      ? masterRows.get(event.recurringEventId)
       : undefined;
     await db.calendarEvent.create({
       data: {
         ...base,
+        id: event.id ? eventRowId(feedId, event.id) : undefined,
         isRecurring: !!event.recurringEventId,
         isMaster: false,
-        masterEventId,
+        masterEventId: master?.id,
         recurringEventId: event.recurringEventId,
-        recurrenceRule: masterEventId
-          ? undefined
-          : processRecurrenceRule(event.recurrence, base.start),
+        recurrenceRule:
+          master?.rule ?? processRecurrenceRule(event.recurrence, base.start),
       },
     });
     written += 1;

@@ -2,6 +2,7 @@ import type { calendar_v3 } from "googleapis";
 
 import { getGoogleCalendarClient } from "@/lib/google-calendar";
 import {
+  eventRowId,
   processRecurrenceRule,
   syncGoogleFeed,
   syncWindow,
@@ -22,7 +23,7 @@ jest.mock("@/lib/prisma", () => {
   const tx = {
     calendarEvent: {
       deleteMany: jest.fn(),
-      create: jest.fn(async () => ({ id: `row-${++n}` })),
+      create: jest.fn(async ({ data }: { data: { id?: string } }) => ({ id: data.id ?? `row-${++n}` })),
     },
     calendarFeed: { update: jest.fn() },
   };
@@ -146,7 +147,7 @@ describe("syncGoogleFeed", () => {
 });
 
 describe("writeFeedEvents", () => {
-  it("links instances to their master row, which carries the rule", async () => {
+  it("links instances to their master row, and both carry the rule", async () => {
     await writeFeedEvents(
       tx as never,
       "feed-1",
@@ -167,9 +168,19 @@ describe("writeFeedEvents", () => {
       externalEventId: "series-1_20261111T140000Z",
       isMaster: false,
       isRecurring: true,
-      recurrenceRule: undefined,
+      recurrenceRule: "RRULE:FREQ=DAILY",
+      masterEventId: m.id,
     });
-    expect(i.masterEventId).toMatch(/^row-/);
+  });
+
+  it("gives an event the same row id on every sync, per feed", async () => {
+    await writeFeedEvents(tx as never, "feed-1", [single], new Map());
+    await writeFeedEvents(tx as never, "feed-1", [single], new Map());
+    await writeFeedEvents(tx as never, "feed-2", [single], new Map());
+    const ids = tx.calendarEvent.create.mock.calls.map((c) => c[0].data.id);
+    expect(ids[0]).toBe(eventRowId("feed-1", "evt-1"));
+    expect(ids[1]).toBe(ids[0]);
+    expect(ids[2]).not.toBe(ids[0]);
   });
 
   it("still writes an instance whose master couldn't be read", async () => {
