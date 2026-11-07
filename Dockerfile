@@ -28,8 +28,9 @@ COPY package*.json ./
 # devDependencies — but the build's type-check needs @types/* and eslint.
 RUN npm ci --legacy-peer-deps --ignore-scripts --include=dev
 # Fail fast if the build context omitted app source (mis-set context → tiny image, missing @/ imports)
-RUN test -f src/components/focus/FocusMode.tsx \
-  && test -f "src/app/(common)/layout.tsx"
+RUN test -f "src/app/(common)/layout.tsx" \
+  && test -f src/worker/worker.ts \
+  && test -f prisma/schema.prisma
 # Generate the Prisma client first — `npm ci --ignore-scripts` skips the
 # postinstall generate, and `next build` type-checks against the client.
 RUN npm run prisma:generate
