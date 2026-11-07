@@ -165,7 +165,9 @@ export class ClientLogger {
               this.config.retryDelay)); // Enough time has passed
 
       return shouldRetry;
-    });
+    // The server takes at most 100 entries per batch (api/logs/batch); the rest
+    // stay untried in the buffer and go with the next flush.
+    }).slice(0, 100);
 
     if (batch.length === 0) return;
 
