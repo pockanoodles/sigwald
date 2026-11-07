@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { RRule } from "rrule";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
+import { findForeignRef, foreignRefMessage } from "@/lib/auth/ownership";
 import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -143,6 +144,15 @@ export async function POST(request: NextRequest) {
     } = json;
     // Only Task's columns: a client copying a task sends its facts too.
     const taskData = taskColumnsOnly(body);
+
+    const foreign = await findForeignRef(userId, {
+      projectId: taskData.projectId,
+      tagIds,
+      goalId,
+    });
+    if (foreign) {
+      return new NextResponse(foreignRefMessage(foreign), { status: 404 });
+    }
 
     // One-level subtasks: inherit the parent's project, never auto-schedule,
     // never sync outward (Canvas/Outlook stay a single assignment).

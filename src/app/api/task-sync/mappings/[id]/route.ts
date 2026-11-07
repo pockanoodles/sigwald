@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
+import { findForeignRef, foreignRefMessage } from "@/lib/auth/ownership";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
@@ -149,6 +150,18 @@ export async function PATCH(
     // Parse request body
     const body = await request.json();
     const validatedData = mappingPatchSchema.parse(body);
+
+    // Sync moves tasks between this project and the provider's list, so the
+    // project must be the caller's own, as the create route already checks.
+    const foreign = await findForeignRef(userId, {
+      projectId: validatedData.projectId,
+    });
+    if (foreign) {
+      return NextResponse.json(
+        { error: foreignRefMessage(foreign) },
+        { status: 404 }
+      );
+    }
 
     // Create an update object only with fields that are provided
     type UpdateData = {

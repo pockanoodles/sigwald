@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
+import { findForeignRef, foreignRefMessage } from "@/lib/auth/ownership";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
@@ -12,7 +14,7 @@ const LOG_SOURCE = "task-sync-providers-api";
 const createProviderSchema = z.object({
   name: z.string().min(1).max(100),
   type: z.enum(["OUTLOOK", "GOOGLE", "CALDAV"]),
-  accountId: z.string().optional(), // Keep this for UI data, but don't pass to Prisma
+  accountId: z.string().optional(), // Must be one of the caller's connected accounts
   syncEnabled: z.boolean().default(true),
   defaultProjectId: z.string().optional(),
   settings: z.record(z.unknown()).optional(),
@@ -72,6 +74,19 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = createProviderSchema.parse(body);
 
+    // The provider syncs with this account's tokens and files tasks into this
+    // project, so both must be the caller's own.
+    const foreign = await findForeignRef(userId, {
+      accountId: validatedData.accountId,
+      projectId: validatedData.defaultProjectId,
+    });
+    if (foreign) {
+      return NextResponse.json(
+        { error: foreignRefMessage(foreign) },
+        { status: 404 }
+      );
+    }
+
     // Create the provider
     const provider = await prisma.taskProvider.create({
       data: {
@@ -115,6 +130,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Invalid data", details: error.errors },
         { status: 400 }
+      );
+    }
+
+    // One provider per type per user (@@unique([userId, type])).
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return NextResponse.json(
+        { error: "A provider of this type is already connected" },
+        { status: 409 }
       );
     }
 

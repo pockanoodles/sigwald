@@ -4,6 +4,7 @@ import { Task } from "@prisma/client";
 import { RRule } from "rrule";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
+import { findForeignRef, foreignRefMessage } from "@/lib/auth/ownership";
 import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -139,6 +140,11 @@ export async function PUT(
       ...body
     } = json;
     const updates = taskColumnsOnly(body);
+
+    const foreign = await findForeignRef(userId, { projectId, tagIds, goalId });
+    if (foreign) {
+      return new NextResponse(foreignRefMessage(foreign), { status: 404 });
+    }
 
     // Set completedAt when task is marked as completed
     if (
