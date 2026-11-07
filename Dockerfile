@@ -38,30 +38,44 @@ RUN SIGWALD_STANDALONE=1 npm run build
 # so the production image runs it without the source or the full node_modules.
 RUN npm run build:worker
 
-# Production stage
+# Production stage: the image published to GHCR (.github/workflows/docker.yml)
+# and the one docker-compose.yml runs, app and worker alike.
 FROM base AS production
 WORKDIR /app
 
 ENV NODE_ENV=production
 
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/dist/worker ./dist/worker
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+# Not root. uid/gid 1001 as the image has always used, so existing volumes keep
+# their owner. Ownership is set at copy time: a chown afterwards would store
+# every file a second time.
+RUN addgroup --system --gid 1001 nodejs \
+  && adduser --system --uid 1001 --ingroup nodejs nextjs \
+  && mkdir -p /data/materials && chown nextjs:nodejs /data/materials
+
+# Downloaded Canvas files (lib/canvas materials cache). Mount a volume here, or
+# they're fetched again whenever the container is recreated.
+ENV SIGWALD_MATERIALS_DIR=/data/materials
+
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/dist/worker ./dist/worker
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 # Prisma CLI + engines so the entrypoint's `npx prisma generate/migrate deploy`
 # resolves locally instead of downloading on every container start.
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/.bin ./node_modules/.bin
-COPY --from=builder /app/prisma ./prisma
-COPY entrypoint.sh .
-RUN chmod +x /app/entrypoint.sh
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin ./node_modules/.bin
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --chown=nextjs:nodejs --chmod=755 entrypoint.sh .
+
+USER nextjs
+
 # Prove the worker starts against this image's node_modules, not the builder's.
-COPY --from=builder /app/scripts/check-worker-bundle.mjs /tmp/
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/check-worker-bundle.mjs /tmp/
 RUN node /tmp/check-worker-bundle.mjs dist/worker/worker.js && rm /tmp/check-worker-bundle.mjs
 
 EXPOSE 3000
 
 ENTRYPOINT ["/app/entrypoint.sh"]
-CMD ["node", "server.js"] 
+CMD ["node", "server.js"]
