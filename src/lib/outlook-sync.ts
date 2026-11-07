@@ -3,7 +3,10 @@ import type { Prisma } from "@prisma/client";
 
 import { convertToUTC, newDate, newDateFromYMD } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
-import { convertOutlookRecurrenceToRRule } from "@/lib/outlook-calendar";
+import {
+  convertOutlookRecurrenceToRRule,
+  getOutlookClient,
+} from "@/lib/outlook-calendar";
 import { prisma } from "@/lib/prisma";
 
 interface OutlookAttendee {
@@ -481,4 +484,41 @@ export async function syncOutlookCalendar(
   }
 
   return { processedEventIds, nextSyncToken };
+}
+
+/**
+ * Syncs one Outlook feed in full: the feed list's sync button and the
+ * background loop (lib/sigwald/job-sync-runner.ts). Graph is read before any
+ * row is deleted, so an unreachable Graph keeps the last good events. A
+ * failure is written to `CalendarFeed.error` and rethrown.
+ */
+export async function syncOutlookFeed(feedId: string): Promise<{ events: number }> {
+  const feed = await prisma.calendarFeed.findUnique({ where: { id: feedId } });
+  if (!feed || feed.type !== "OUTLOOK" || !feed.accountId || !feed.url || !feed.userId) {
+    throw new Error(`Feed ${feedId} is not a connected Outlook calendar`);
+  }
+  try {
+    const client = await getOutlookClient(feed.accountId, feed.userId);
+    const { processedEventIds, nextSyncToken } = await syncOutlookCalendar(
+      client,
+      { id: feed.id, url: feed.url },
+      feed.syncToken,
+      true
+    );
+    await prisma.calendarFeed.update({
+      where: { id: feed.id },
+      data: {
+        lastSync: newDate(),
+        error: null,
+        ...(nextSyncToken ? { syncToken: nextSyncToken } : {}),
+      },
+    });
+    return { events: processedEventIds.size };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await prisma.calendarFeed
+      .update({ where: { id: feed.id }, data: { error: message.slice(0, 500) } })
+      .catch(() => {});
+    throw error;
+  }
 }
