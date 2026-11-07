@@ -28,10 +28,6 @@ const IV_BYTES = 12; // 96 bits, the size GCM is defined for
 // No dot in the prefix: `.` is the envelope separator, and base64url never
 // produces one, so the parts stay unambiguous.
 const ENVELOPE_PREFIX = "sigwald_v1";
-// The same envelope under its name from before the Erwin → Sigwald rename.
-// Read, never written. Without it every credential stored before the rename
-// reads as plaintext and goes out to Canvas or Google still encrypted.
-const LEGACY_ENVELOPE_PREFIX = "erwin_v1";
 
 /**
  * `sigwald_v1.<iv>.<authTag>.<ciphertext>`, all base64url.
@@ -58,7 +54,7 @@ function envelope(iv: Buffer, tag: Buffer, ciphertext: Buffer): string {
  */
 export function isEncrypted(value: string): boolean {
   const [prefix, ...parts] = value.split(".");
-  if (prefix !== ENVELOPE_PREFIX && prefix !== LEGACY_ENVELOPE_PREFIX) {
+  if (prefix !== ENVELOPE_PREFIX) {
     return false;
   }
   return parts.length === 3;

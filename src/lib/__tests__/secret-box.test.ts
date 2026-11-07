@@ -50,13 +50,6 @@ describe("secret-box", () => {
     expect(encryptSecret(once)).toBe(once);
   });
 
-  it("reads and never re-wraps a value sealed before the rename", () => {
-    const legacy = encryptSecret("1234~tok").replace(/^sigwald_v1\./, "erwin_v1.");
-    expect(isEncrypted(legacy)).toBe(true);
-    expect(decryptSecret(legacy)).toBe("1234~tok");
-    expect(encryptSecret(legacy)).toBe(legacy);
-  });
-
   it("passes plaintext through on decrypt, so pre-migration rows still read", () => {
     expect(decryptSecret("legacy-plaintext-token")).toBe(
       "legacy-plaintext-token"
