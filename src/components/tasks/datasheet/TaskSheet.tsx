@@ -15,7 +15,6 @@ import {
 
 import { Task, TaskStatus } from "@/types/task";
 
-import { useDraggableTask } from "../../dnd/useDragAndDrop";
 import { withLensColumns } from "../lens";
 import { useTasksLenses } from "../use-tasks-lenses";
 import { isUpcomingTask } from "../utils/task-list-utils";
@@ -514,7 +513,6 @@ function TaskSheetRow({
   onDelete: (taskId: string) => void;
   onStatusChange: (taskId: string, status: TaskStatus) => void;
 }) {
-  const { draggableProps, isDragging } = useDraggableTask(task);
   const isCompleted = task.status === TaskStatus.COMPLETED;
   const isUpcoming = isUpcomingTask(task);
 
@@ -527,19 +525,14 @@ function TaskSheetRow({
     <tr
       className={cn(
         "group",
-        isDragging && "opacity-50",
         isUpcoming && "text-muted-foreground",
         isCompleted && "text-muted-foreground line-through decoration-1"
       )}
     >
-      {/* Row header doubles as the drag grip — the same place you'd grab a row
-          in a spreadsheet, and it keeps drag-to-calendar without spending a
-          column on a handle nobody can see until they hover it. */}
       <td
-        {...draggableProps}
         className={cn(
           ROW,
-          "sticky left-0 z-10 cursor-grab select-none border-b border-r border-border px-2 text-right",
+          "sticky left-0 z-10 select-none border-b border-r border-border px-2 text-right",
           "font-mono text-[10px] tabular-nums",
           // Opaque, not a tint. A frozen column with a translucent background
           // lets the columns scrolling underneath show straight through it —
@@ -548,7 +541,6 @@ function TaskSheetRow({
             ? "bg-accent text-accent-foreground"
             : "bg-muted text-muted-foreground"
         )}
-        title="Drag onto the calendar to schedule"
       >
         {rowNumber}
       </td>

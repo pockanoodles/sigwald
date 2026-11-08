@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 
-import { DndProvider } from "@/components/dnd/DndProvider";
 import { AppBottomBar } from "@/components/navigation/AppBottomBar";
 import { AppNav } from "@/components/navigation/AppNav";
 import { AppTopBar } from "@/components/navigation/AppTopBar";
@@ -59,26 +58,24 @@ export default function RootLayout({
     <div className="app-sharp flex h-dvh flex-col">
       <SessionProvider>
         <PrivacyProvider>
-          <DndProvider>
-            <SetupCheck />
-            <CommandPalette
-              open={commandPaletteOpen}
-              onOpenChange={setCommandPaletteOpen}
-            />
-            <ShortcutsModal
-              isOpen={shortcutsOpen}
-              onClose={() => setShortcutsOpen(false)}
-            />
-            <AppTopBar />
-            <div className="flex min-h-0 flex-1">
-              <AppNav />
-              <main className="relative min-w-0 flex-1 overflow-y-auto">
-                {children}
-              </main>
-            </div>
-            <AppBottomBar />
-            <Toaster />
-          </DndProvider>
+          <SetupCheck />
+          <CommandPalette
+            open={commandPaletteOpen}
+            onOpenChange={setCommandPaletteOpen}
+          />
+          <ShortcutsModal
+            isOpen={shortcutsOpen}
+            onClose={() => setShortcutsOpen(false)}
+          />
+          <AppTopBar />
+          <div className="flex min-h-0 flex-1">
+            <AppNav />
+            <main className="relative min-w-0 flex-1 overflow-y-auto">
+              {children}
+            </main>
+          </div>
+          <AppBottomBar />
+          <Toaster />
         </PrivacyProvider>
       </SessionProvider>
     </div>
