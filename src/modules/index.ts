@@ -3,26 +3,27 @@ import ladder from "@/modules/ladder/manifest";
 import nutrition from "@/modules/nutrition/manifest";
 import people from "@/modules/people/manifest";
 import training from "@/modules/training/manifest";
-import work from "@/modules/work/manifest";
 import type {
   ClaimOption,
   ModuleId,
   ModuleManifest,
   ModuleState,
 } from "@/modules/types";
+import work from "@/modules/work/manifest";
 
 /**
- * Every module this build ships, in catalog order. Plain data, so the rail,
- * the server and middleware can all import it. A module someone has never
- * touched takes its place in the rail from this order.
+ * Every module this build ships, in catalog order: finished modules first,
+ * then the ones still in beta. Plain data, so the rail, the server and
+ * middleware can all import it. A module someone has never touched takes its
+ * place in the rail from this order.
  */
 export const MODULES: readonly ModuleManifest[] = [
-  courses,
   ladder,
+  work,
+  courses,
   people,
   training,
   nutrition,
-  work,
 ];
 
 export function isModuleId(id: string): id is ModuleId {

@@ -10,6 +10,20 @@ import {
 } from "@/modules";
 
 describe("resolveModuleStates", () => {
+  it("lists finished modules before the ones in beta", () => {
+    const ids = MODULES.map((m) => m.id);
+    expect(ids).toEqual([
+      "ladder",
+      "work",
+      "courses",
+      "people",
+      "training",
+      "nutrition",
+    ]);
+    const firstBeta = MODULES.findIndex((m) => m.beta);
+    expect(MODULES.slice(firstBeta).every((m) => m.beta)).toBe(true);
+  });
+
   it("gives a module nobody touched its default and its catalog place", () => {
     const states = resolveModuleStates([]);
     expect(states.map((s) => s.id)).toEqual(MODULES.map((m) => m.id));
@@ -24,11 +38,11 @@ describe("resolveModuleStates", () => {
     ]);
     expect(states).toEqual([
       { id: "ladder", on: false, position: 0 },
-      { id: "people", on: false, position: 2 },
-      { id: "training", on: false, position: 3 },
-      { id: "nutrition", on: false, position: 4 },
+      { id: "work", on: false, position: 1 },
+      { id: "people", on: false, position: 3 },
+      { id: "training", on: false, position: 4 },
       { id: "courses", on: true, position: 5 },
-      { id: "work", on: false, position: 5 },
+      { id: "nutrition", on: false, position: 5 },
     ]);
   });
 
@@ -41,16 +55,16 @@ describe("resolveModuleStates", () => {
 
   it("breaks a tie in position by catalog order", () => {
     const states = resolveModuleStates([
-      { moduleId: "ladder", enabled: true, position: 0 },
       { moduleId: "courses", enabled: true, position: 0 },
+      { moduleId: "ladder", enabled: true, position: 0 },
     ]);
     expect(states.map((s) => s.id)).toEqual([
-      "courses",
       "ladder",
+      "courses",
+      "work",
       "people",
       "training",
       "nutrition",
-      "work",
     ]);
   });
 });
@@ -58,10 +72,10 @@ describe("resolveModuleStates", () => {
 describe("hiddenSourcesOf", () => {
   it("hides each module's tasks only while it's off", () => {
     expect(hiddenSourcesOf(resolveModuleStates([]))).toEqual([
+      "WORK",
       "CANVAS",
       "PEOPLE",
       "TRAINING",
-      "WORK",
     ]);
     expect(
       hiddenSourcesOf(

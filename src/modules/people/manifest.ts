@@ -6,6 +6,7 @@ const people: ModuleManifest = {
   summary:
     "The people you keep in touch with: a cadence for each, and a nudge in Today when one goes quiet.",
   defaultOn: false,
+  beta: true,
   page: {
     href: "/people",
     keywords: [

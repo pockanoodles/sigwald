@@ -6,6 +6,7 @@ const nutrition: ModuleManifest = {
   summary:
     "What you eat against daily targets for calories, protein, carbs and fat, with the foods you eat often a tap away.",
   defaultOn: false,
+  beta: true,
   page: {
     href: "/nutrition",
     keywords: [

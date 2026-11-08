@@ -133,21 +133,13 @@ export function AppNav({ className }: AppNavProps) {
         title="Modules: turn parts of Sigwald on or off"
         tabIndex={tabIndex}
         className={cn(
-          "mx-2 mt-4 flex items-center justify-between whitespace-nowrap px-2.5 transition-colors duration-150",
+          "mx-2 mt-4 flex items-center whitespace-nowrap px-2.5 transition-colors duration-150",
           isMobile ? "h-11" : "h-7",
           onCatalog ? "er-brackets [--bracket:var(--er-ink)]" : "hover:bg-hover"
         )}
       >
         <span className={cn("er-label", isMobile ? undefined : label)}>
           Modules
-        </span>
-        <span
-          className={cn(
-            "er-slash font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground",
-            isMobile ? undefined : label
-          )}
-        >
-          Add
         </span>
       </Link>
 

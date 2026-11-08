@@ -171,6 +171,7 @@ function CatalogRow({
         )}
       >
         {m.name}
+        {m.beta ? <BetaTag className="ml-2" /> : null}
       </td>
       <td className={cn(cell, "text-muted-foreground")}>{m.adds[0]}</td>
       <td className={cn(cell, "text-muted-foreground")}>
@@ -224,7 +225,10 @@ function ModulePane({
   return (
     <div className="space-y-6 p-5">
       <div className="space-y-2">
-        <h2 className="er-display text-lg text-foreground">{m.name}</h2>
+        <h2 className="er-display flex items-baseline gap-2.5 text-lg text-foreground">
+          {m.name}
+          {m.beta ? <BetaTag /> : null}
+        </h2>
         <p className="text-sm leading-relaxed text-muted-foreground">
           {m.summary}
         </p>
@@ -324,6 +328,25 @@ function ModulePane({
         </PaneSection>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * A module still taking shape. Faint stencil caps beside the name, not a
+ * coloured badge: it's a note about the module, not a status to act on, so it
+ * stays out of the rust and out of the State column.
+ */
+function BetaTag({ className }: { className?: string }) {
+  return (
+    <span
+      title="In beta: it works, but what it does may still change"
+      className={cn(
+        "font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-ink-faint",
+        className
+      )}
+    >
+      Beta
+    </span>
   );
 }
 

@@ -127,7 +127,7 @@ describe("moduleRankSignals", () => {
 describe("moduleClaimKeys", () => {
   it("asks every module, on or off, and keeps every key", async () => {
     const keys = await moduleClaimKeys(db, "u", ["a", "b"]);
-    expect(keys.get("a")).toEqual(["course:a", "venture:x"]);
+    expect(keys.get("a")).toEqual(["venture:x", "course:a"]);
     expect(keys.get("b")).toEqual(["course:b"]);
   });
 });
