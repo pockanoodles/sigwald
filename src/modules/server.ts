@@ -3,8 +3,9 @@
  * import Prisma). The core reads this list and never imports a module's
  * server code itself.
  */
-import type { RankSignals } from "@/lib/sigwald/rank-stage1";
 import type { Db, DbTransaction } from "@/lib/prisma";
+import type { SearchGroup, SearchQuery } from "@/lib/search/types";
+import type { RankSignals } from "@/lib/sigwald/rank-stage1";
 
 import {
   courseClaimKeys,
@@ -13,17 +14,22 @@ import {
   courseTaskFacts,
 } from "@/modules/courses/facts";
 import { courseProofItems } from "@/modules/courses/proof";
+import { searchCourses } from "@/modules/courses/search";
 import { syncCanvasIfDue } from "@/modules/courses/server";
 import { goalRankSignals, goalTaskFacts } from "@/modules/ladder/facts";
+import { searchGoals } from "@/modules/ladder/search";
 import { linkChangedTasksToGoals } from "@/modules/ladder/server";
 import { reconcileReachOuts } from "@/modules/people/reach-out";
+import { searchPeople } from "@/modules/people/search";
 import {
   routineClaimKeys,
   routineClaimOptions,
 } from "@/modules/training/facts";
+import { searchRoutines } from "@/modules/training/search";
 import { reconcileWorkouts } from "@/modules/training/workout";
 import type { ClaimOption, ModuleId, ProofItem } from "@/modules/types";
 import { restoreShiftEvents } from "@/modules/work/feed";
+import { searchWork } from "@/modules/work/search";
 import { reconcileTimesheets } from "@/modules/work/timesheet";
 
 export interface ModuleJob {
@@ -85,6 +91,11 @@ export interface ServerContributions {
     userId: string,
     taskIds: string[]
   ) => Promise<Map<string, string[]>>;
+  /**
+   * What the top bar's search finds among what it keeps: a group per kind of
+   * thing, each hit linking to its page opened on it. Asked only while it's on.
+   */
+  search?: (db: Db, userId: string, q: SearchQuery) => Promise<SearchGroup[]>;
 }
 
 export const SERVER_MODULES: Record<ModuleId, ServerContributions> = {
@@ -95,19 +106,23 @@ export const SERVER_MODULES: Record<ModuleId, ServerContributions> = {
     claimKeys: courseClaimKeys,
     claimOptions: courseClaimOptions,
     proofItems: courseProofItems,
+    search: searchCourses,
   },
   ladder: {
     afterTasksChange: linkChangedTasksToGoals,
     taskFacts: goalTaskFacts,
     rankSignals: goalRankSignals,
+    search: searchGoals,
   },
   people: {
     jobs: [{ id: "people.reconcile", run: reconcileReachOuts }],
+    search: searchPeople,
   },
   training: {
     jobs: [{ id: "training.reconcile", run: reconcileWorkouts }],
     claimKeys: routineClaimKeys,
     claimOptions: routineClaimOptions,
+    search: searchRoutines,
   },
   // Nutrition keeps to its own page and the top bar: nothing on the server's side.
   nutrition: {},
@@ -116,5 +131,6 @@ export const SERVER_MODULES: Record<ModuleId, ServerContributions> = {
       { id: "work.timesheets", run: reconcileTimesheets },
       { id: "work.calendar", run: restoreShiftEvents },
     ],
+    search: searchWork,
   },
 };

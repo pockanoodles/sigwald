@@ -1,6 +1,6 @@
 "use client";
 
-import { BsKanban, BsListTask } from "react-icons/bs";
+import { BsKanban, BsTable } from "react-icons/bs";
 import { HiOutlinePlus } from "react-icons/hi";
 
 import {
@@ -13,17 +13,18 @@ import { useIsMobile } from "@/hooks/use-media-query";
 
 import { useTaskStore } from "@/store/task";
 import { useTaskModalStore } from "@/store/taskModal";
-import { useTaskPageSettings } from "@/store/taskPageSettings";
+import {
+  type TaskViewMode,
+  useTaskPageSettings,
+} from "@/store/taskPageSettings";
 
 import { useTasksLenses } from "./use-tasks-lenses";
 
 /** The tasks page's share of the app top bar — see CalendarTopBar for why
  *  these live with their feature rather than inside AppTopBar. */
 
-type TaskViewMode = "list" | "board";
-
 const VIEW_SEGMENTS: ReadonlyArray<BarSegment<TaskViewMode>> = [
-  { id: "list", label: "List", icon: BsListTask },
+  { id: "sheet", label: "Sheet", icon: BsTable },
   { id: "board", label: "Board", icon: BsKanban },
 ];
 

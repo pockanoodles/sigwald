@@ -68,6 +68,9 @@ interface TaskListViewSettings {
 
   // Filter settings
   conditions: TaskFilterConditions;
+  /** Text a task's title, notes or tags must contain. Set from the filter
+   *  menu or the top bar's search, and never saved: a term left over from
+   *  last week would hide tasks with nothing on screen saying so. */
   search?: string;
   /** Deferral isn't a condition: deferred tasks stay hidden until this is
    *  on, and a search shows them anyway. */
@@ -99,7 +102,7 @@ interface TaskListViewSettings {
   setCondition: (field: string, condition: FilterCondition | null) => void;
   setSearch: (search: string) => void;
   setShowDeferred: (show: boolean) => void;
-  /** No conditions: every task the list mode and the tabs let through. */
+  /** No conditions and no text: every task the list mode and the tabs let through. */
   clearConditions: () => void;
   /** Back to the defaults: open work, deferred hidden. Search is left alone. */
   resetFilters: () => void;
@@ -176,6 +179,8 @@ export function migrateTaskListViewSettings(
     delete state.hideUpcomingTasks;
     state.conditions = conditions;
   }
+  // The text filter stopped being saved (see `search`).
+  if (version < 5) delete state.search;
   return state as TaskListViewSettings;
 }
 
@@ -213,7 +218,7 @@ export const useTaskListViewSettings = create<TaskListViewSettings>()(
         }),
       setSearch: (search) => set({ search: search || undefined }),
       setShowDeferred: (showDeferred) => set({ showDeferred }),
-      clearConditions: () => set({ conditions: {} }),
+      clearConditions: () => set({ conditions: {}, search: undefined }),
       resetFilters: () =>
         set({ conditions: DEFAULT_CONDITIONS, showDeferred: false }),
       setListMode: (listMode) => set({ listMode }),
@@ -250,8 +255,10 @@ export const useTaskListViewSettings = create<TaskListViewSettings>()(
       // before a key existed simply leaves its initial value in place.
       // `visibleColumns` is different — a saved list replaces the default
       // wholesale, so a new default column has to be added to it explicitly.
-      version: 4,
+      version: 5,
       migrate: migrateTaskListViewSettings,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      partialize: ({ search, ...saved }) => saved,
     }
   )
 );

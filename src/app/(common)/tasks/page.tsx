@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { toast } from "sonner";
 
+import { UrlAsk } from "@/components/navigation/UrlAsk";
 import { BoardView } from "@/components/tasks/BoardView/BoardView";
 import { TaskList } from "@/components/tasks/TaskList";
 import { TaskModal } from "@/components/tasks/TaskModal";
@@ -42,12 +43,31 @@ export default function TasksPage() {
   const { isOpen, editingTask, initialGoalId, openEdit, close } =
     useTaskModalStore();
 
+  // A task asked for by the top bar's search (?task=…), resolved once this
+  // visit's fetch is in: a list from an earlier visit may not have it yet.
+  const [fetched, setFetched] = useState(false);
+  const [asked, setAsked] = useState<string | null>(null);
+  const [reveal, setReveal] = useState<{ id: string } | null>(null);
+
   // Fetch tasks, tags and projects on mount
   useEffect(() => {
-    fetchTasks();
+    void fetchTasks().finally(() => setFetched(true));
     fetchTags();
     fetchProjects();
   }, [fetchTasks, fetchTags, fetchProjects]);
+
+  useEffect(() => {
+    if (!asked || !fetched) return;
+    setAsked(null);
+    const task = tasks.find((t) => t.id === asked);
+    if (!task) {
+      toast.error("That task isn't in your list any more");
+    } else if (viewMode === "board") {
+      openEdit(task);
+    } else {
+      setReveal({ id: task.id });
+    }
+  }, [asked, fetched, tasks, viewMode, openEdit]);
 
   const handleCreateTask = async (task: NewTask) => {
     await createTask(task);
@@ -125,18 +145,9 @@ export default function TasksPage() {
           </Alert>
         )}
 
-        {/* List is TaskRow by default (Sheet is an optional datasheet). */}
+        {/* Two views: the sheet (rows on a phone) and the board. */}
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          {viewMode === "list" ? (
-            <TaskList
-              tasks={tasks}
-              onEdit={openEdit}
-              onDelete={handleDeleteTask}
-              onStatusChange={handleStatusChange}
-              onInlineEdit={handleInlineEdit}
-              onCreateSubtask={handleCreateSubtask}
-            />
-          ) : (
+          {viewMode === "board" ? (
             <BoardView
               tasks={tasks}
               onEdit={openEdit}
@@ -144,8 +155,20 @@ export default function TasksPage() {
               onStatusChange={handleStatusChange}
               onInlineEdit={handleInlineEdit}
             />
+          ) : (
+            <TaskList
+              tasks={tasks}
+              onEdit={openEdit}
+              onDelete={handleDeleteTask}
+              onStatusChange={handleStatusChange}
+              onInlineEdit={handleInlineEdit}
+              onCreateSubtask={handleCreateSubtask}
+              reveal={reveal}
+            />
           )}
         </div>
+
+        <UrlAsk names={["task"]} onAsk={({ task }) => setAsked(task)} />
 
         <TaskModal
           isOpen={isOpen}

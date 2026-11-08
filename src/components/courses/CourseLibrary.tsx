@@ -14,6 +14,7 @@ import { courseTab } from "./course-tab";
 import { GradesSheet } from "./GradesSheet";
 import { LibrarySheet, openCount } from "./LibrarySheet";
 import { NewsSheet } from "./NewsSheet";
+import { UrlAsk } from "@/components/navigation/UrlAsk";
 import { UnseenPip } from "@/components/sheet/sheet";
 
 /**
@@ -52,6 +53,16 @@ export function CourseLibrary() {
   const [selection, setSelection] = useState<Selection>(NO_SELECTION);
   // Where the URL says to open, until the courses arrive to resolve it against.
   const pendingUrl = useRef<ReturnType<typeof readUrl> | null>(readUrl());
+  // A link that arrives while the page is open (the top bar's search), or
+  // that a client-side navigation opened it on, is resolved the same way.
+  // Its values come from the router: on a client-side navigation the page
+  // renders before the address bar changes, so readUrl() above can still be
+  // reading the page you came from.
+  const [asks, setAsks] = useState(0);
+  const reAsk = useCallback(({ m, course }: Record<string, string | null>) => {
+    pendingUrl.current = { view: null, course: course ?? null, sel: null, material: m ?? null };
+    setAsks((n) => n + 1);
+  }, []);
 
   useEffect(() => {
     void fetchCourses();
@@ -72,7 +83,7 @@ export function CourseLibrary() {
     if (v) setView(v);
     setCourseKey(course && courses.some((c) => c.id === course) ? course : ALL_COURSES);
     if (v && sel) setSelection({ ...NO_SELECTION, [v]: sel });
-  }, [loaded, courses, setView, setCourseKey]);
+  }, [loaded, courses, setView, setCourseKey, asks]);
 
   // A course that stopped being live can't stay selected.
   useEffect(() => {
@@ -117,8 +128,22 @@ export function CourseLibrary() {
     return () => window.removeEventListener("keydown", onKey);
   }, [courses, courseKey, switchCourse, setView]);
 
+  // Kept on the URL: this page writes its own state there, so the URL already
+  // moves with what's on screen. A material (?m=) or a course from the search.
+  const urlAsks = (
+    <>
+      <UrlAsk names={["m"]} keep onAsk={reAsk} />
+      <UrlAsk names={["course"]} keep onAsk={reAsk} />
+    </>
+  );
+
   if (!loaded) {
-    return <p className="p-6 text-[13px] text-muted-foreground">Loading courses…</p>;
+    return (
+      <p className="p-6 text-[13px] text-muted-foreground">
+        {urlAsks}
+        Loading courses…
+      </p>
+    );
   }
   if (error) {
     return <p className="p-6 text-[13px] text-destructive">{error}</p>;
@@ -137,6 +162,7 @@ export function CourseLibrary() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
+      {urlAsks}
       {view === "activity" ? (
         <ActivitySheet courses={courses} courseKey={tabCourse} selected={selection.activity} onSelect={select} />
       ) : view === "grades" ? (

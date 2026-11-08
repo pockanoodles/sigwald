@@ -336,3 +336,13 @@ describe("migrateTaskListViewSettings to conditions", () => {
     );
   });
 });
+
+describe("migrateTaskListViewSettings to an unsaved text filter", () => {
+  it("drops a saved search term, which nothing on screen would show", () => {
+    const state = migrateTaskListViewSettings(
+      { search: "netflix", conditions: {} },
+      4
+    );
+    expect(state.search).toBeUndefined();
+  });
+});

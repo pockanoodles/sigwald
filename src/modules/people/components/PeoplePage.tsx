@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+import { UrlAsk } from "@/components/navigation/UrlAsk";
 import {
   HEAD,
   ROW,
@@ -43,7 +44,10 @@ export function PeoplePage() {
   const status = usePeopleStore((s) => s.status);
   const selected = usePeopleStore((s) => s.selected);
   const select = usePeopleStore((s) => s.select);
+  const setView = usePeopleStore((s) => s.setView);
   const load = usePeopleStore((s) => s.load);
+  // ?person=… (the top bar's search), held until the people are in.
+  const [asked, setAsked] = useState<string | null>(null);
 
   useEffect(() => {
     void load();
@@ -61,6 +65,17 @@ export function PeoplePage() {
       : undefined;
   const activeIndex = rows.findIndex((r) => r.id === selected);
 
+  // Open the asked person in a view that lists them: the archive for someone
+  // archived, everyone for someone the current view leaves out.
+  useEffect(() => {
+    if (!asked || status !== "ready") return;
+    setAsked(null);
+    const isArchived = archived.some((p) => p.id === asked);
+    if (isArchived && view !== "archived") setView("archived");
+    else if (!isArchived && !rows.some((r) => r.id === asked)) setView("all");
+    select(asked);
+  }, [asked, status, archived, rows, view, setView, select]);
+
   useScrollActiveIntoView([selected]);
   const onKeyDown = sheetKeyHandler({
     count: rows.length,
@@ -71,6 +86,7 @@ export function PeoplePage() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
+      <UrlAsk names={["person"]} onAsk={({ person }) => setAsked(person)} />
       <SheetLayout
         label="People"
         onKeyDown={(e) => void onKeyDown(e)}

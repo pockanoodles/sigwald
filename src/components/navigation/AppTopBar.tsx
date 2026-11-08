@@ -195,10 +195,11 @@ export function AppTopBar() {
           </div>
         ) : null}
 
-        {/* Search reads as a field because that's what it behaves like — it
-            just hands off to the ⌘K palette, which already searches tasks,
-            events and commands. A second search implementation would be two
-            places to keep in sync for no new capability. */}
+        {/* The one search, in the same corner on every route. It reads as a
+            field and opens the ⌘K palette, which finds pages, tasks, events
+            and what the modules keep, and runs commands. Pages don't grow
+            search boxes of their own: Tasks' text filter is offered from
+            here and lives in its Filter menu. */}
         <button
           type="button"
           onClick={() => openPalette(true)}

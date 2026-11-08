@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 
+import { UrlAsk } from "@/components/navigation/UrlAsk";
 import { Button } from "@/components/ui/button";
 
 import { useLadderStore } from "@/store/ladder";
@@ -51,9 +52,13 @@ export function LadderPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // ?goal=…&year=…&index=… (the top bar's search) opens the goal on its own hex.
+  const ask = <UrlAsk names={["goal", "year", "index"]} onAsk={openGoal} />;
+
   if (!data) {
     return (
       <div className="space-y-3 p-6">
+        {ask}
         {status === "error" ? (
           <>
             <p className="text-sm text-destructive" role="alert">
@@ -72,6 +77,7 @@ export function LadderPage() {
 
   return (
     <div className="flex h-full flex-col overflow-y-auto xl:overflow-hidden">
+      {ask}
       <HexBand data={data} />
       <div className="er-layout-soft grid flex-1 grid-cols-1 xl:min-h-0 xl:grid-cols-[minmax(0,7fr)_minmax(0,6fr)]">
         <div className="border-b border-border xl:min-h-0 xl:border-b-0 xl:border-r">
@@ -90,4 +96,24 @@ export function LadderPage() {
       <GoalDialog />
     </div>
   );
+}
+
+/** Show a goal's hex (unless it's already up), then select the goal. */
+function openGoal({
+  goal,
+  year,
+  index,
+}: Record<string, string | null>) {
+  if (!goal) return;
+  const s = useLadderStore.getState();
+  const y = Number(year);
+  const i = Number(index);
+  if (Number.isInteger(y) && Number.isInteger(i) && i >= 1 && i <= 6) {
+    const shown = s.hex ?? s.data?.current;
+    if (!shown || shown.year !== y || shown.index !== i) {
+      const current = s.data?.current;
+      s.showHex(current && current.year === y && current.index === i ? null : { year: y, index: i });
+    }
+  }
+  s.selectGoal(goal);
 }
