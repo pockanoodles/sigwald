@@ -78,4 +78,29 @@ describe("ensureCurrentHex", () => {
       status: "active",
     });
   });
+
+  it("reads the winner's cycle when another request made it first", async () => {
+    const winner = { id: "winner", status: "active" };
+    let attempt = 0;
+    const db = {
+      $transaction: async () => {
+        attempt += 1;
+        // The first try loses the insert race to a request that committed first.
+        if (attempt === 1) throw Object.assign(new Error("Unique constraint"), { code: "P2002" });
+        return winner;
+      },
+    } as unknown as Db;
+    await expect(ensureCurrentHex(db, "user")).resolves.toBe(winner);
+    expect(attempt).toBe(2);
+  });
+
+  it("doesn't retry any other failure", async () => {
+    const db = {
+      $transaction: jest.fn(async () => {
+        throw new Error("connection lost");
+      }),
+    } as unknown as Db & { $transaction: jest.Mock };
+    await expect(ensureCurrentHex(db, "user")).rejects.toThrow("connection lost");
+    expect(db.$transaction).toHaveBeenCalledTimes(1);
+  });
 });

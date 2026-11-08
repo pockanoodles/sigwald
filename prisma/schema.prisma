@@ -424,6 +424,8 @@ model GoalCycle {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // One cycle per person per hex: ensureCurrentHex once raced and made copies.
+  @@unique([userId, startDate, endDate])
   @@index([userId])
   @@index([status])
 }

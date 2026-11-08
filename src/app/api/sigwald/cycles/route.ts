@@ -95,6 +95,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(cycle);
   } catch (error) {
+    // One cycle per person per hex (@@unique([userId, startDate, endDate])).
+    if ((error as { code?: unknown } | null)?.code === "P2002") {
+      return new NextResponse("A cycle already covers those dates", {
+        status: 409,
+      });
+    }
     logger.error(
       "Error creating goal cycle:",
       { error: error instanceof Error ? error.message : String(error) },
