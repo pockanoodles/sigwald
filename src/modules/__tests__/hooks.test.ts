@@ -3,6 +3,7 @@ import type { Db } from "@/lib/prisma";
 import {
   moduleClaimKeys,
   moduleRankSignals,
+  moduleSearch,
   moduleTaskFacts,
 } from "@/modules/hooks";
 import type { FactsRequest } from "@/modules/server";
@@ -30,6 +31,10 @@ jest.mock("@/modules/server", () => ({
         rankSignals: jest.fn(
           async () => new Map([["a", { stakes: 100, stakesGroup: "c1" }]])
         ),
+        search: jest.fn(async () => [
+          { id: "courses", label: "Courses", hits: [] },
+          { id: "materials", label: "Materials", hits: [] },
+        ]),
       },
       ladder: {
         taskFacts: jest.fn(
@@ -43,8 +48,14 @@ jest.mock("@/modules/server", () => ({
             ])
         ),
         claimKeys: jest.fn(async () => new Map([["a", ["venture:x"]]])),
+        search: jest.fn(async () => {
+          throw new Error("goals table on fire");
+        }),
       },
       people: {
+        search: jest.fn(async () => [
+          { id: "people", label: "People", hits: [] },
+        ]),
         rankSignals: jest.fn(
           async () =>
             new Map([
@@ -118,5 +129,24 @@ describe("moduleClaimKeys", () => {
     const keys = await moduleClaimKeys(db, "u", ["a", "b"]);
     expect(keys.get("a")).toEqual(["course:a", "venture:x"]);
     expect(keys.get("b")).toEqual(["course:b"]);
+  });
+});
+
+describe("moduleSearch", () => {
+  const q = {
+    text: "ana",
+    now: new Date(),
+    timeZone: "UTC",
+    timeFormat: "12h" as const,
+  };
+
+  it("asks only the modules that are on, in catalog order", async () => {
+    const groups = await moduleSearch(db, "u", q, on("people", "courses"));
+    expect(groups.map((g) => g.id)).toEqual(["courses", "materials", "people"]);
+  });
+
+  it("leaves out a module whose search fails instead of failing the rest", async () => {
+    const groups = await moduleSearch(db, "u", q, on("ladder", "people"));
+    expect(groups.map((g) => g.id)).toEqual(["people"]);
   });
 });

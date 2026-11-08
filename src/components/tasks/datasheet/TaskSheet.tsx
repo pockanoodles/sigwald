@@ -71,6 +71,12 @@ interface TaskSheetProps {
   onInlineEdit: (task: TaskPatch) => void;
   /** Show the selected task's Canvas packet in a pane beside the grid. */
   packetOpen: boolean;
+  /**
+   * Select this task's title cell and bring it on screen (the top bar's
+   * search opening a task). A new object each time, so asking for the same
+   * task twice moves the cursor back to it twice.
+   */
+  reveal?: { id: string } | null;
 }
 
 /** Wide enough for a rubric table and a material title; the grid keeps the rest. */
@@ -92,6 +98,7 @@ export function TaskSheet({
   onStatusChange,
   onInlineEdit,
   packetOpen,
+  reveal,
 }: TaskSheetProps) {
   const columnWidths = useTaskListViewSettings((s) => s.columnWidths);
   const setColumnWidth = useTaskListViewSettings((s) => s.setColumnWidth);
@@ -171,6 +178,17 @@ export function TaskSheet({
     },
     [row, col, columns.length, tasks.length]
   );
+
+  useEffect(() => {
+    if (!reveal) return;
+    const at = tasks.findIndex((t) => t.id === reveal.id);
+    if (at === -1) return;
+    setActive({ row: at, col: Math.max(0, columns.findIndex((c) => c.id === "title")) });
+    // So the arrows carry on from it.
+    scrollRef.current?.focus({ preventScroll: true });
+    // Only a new ask moves the cursor; the list changing under it doesn't.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reveal]);
 
   // Keep the selection on screen when it's driven from the keyboard.
   useEffect(() => {

@@ -7,6 +7,7 @@ import { FeedManager } from "@/components/calendar/FeedManager";
 import { MonthView } from "@/components/calendar/MonthView";
 import { MultiMonthView } from "@/components/calendar/MultiMonthView";
 import { WeekView } from "@/components/calendar/WeekView";
+import { UrlAsk } from "@/components/navigation/UrlAsk";
 import { useHorizontalSwipe } from "@/components/ui/swipeable-row";
 
 import { addDays, subDays } from "@/lib/date-utils";
@@ -153,6 +154,9 @@ export function Calendar({
         className="flex min-w-0 flex-1 flex-col bg-background"
         {...swipeHandlers}
       >
+        {/* ?date=2026-11-14 (the top bar's search opening an event) moves to
+            that day in the view you're on. */}
+        <UrlAsk names={["date"]} onAsk={({ date }) => openDay(date, setDate)} />
         <div className="flex-1 overflow-hidden">
           {view === "day" ? (
             <DayView currentDate={currentDate} onDateClick={setDate} />
@@ -167,4 +171,10 @@ export function Calendar({
       </main>
     </div>
   );
+}
+
+/** A "2026-11-14" from the URL, as that local day; anything else is ignored. */
+function openDay(day: string | null, setDate: (date: Date) => void) {
+  const m = day?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) setDate(new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
 }

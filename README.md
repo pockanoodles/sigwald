@@ -39,9 +39,9 @@ Every Sigwald has the same four pages, and they hold their place at the top of t
 | **Today** | Every open task in ranked order. The panel beside it shows the selected task's deadline and goal, and Done finishes it in one click. |
 | **Focus** | The top task alone on the screen with what you need for it, its deadline and how long it should take. Done, skip and later move you to the next one. |
 | **Calendar** | Day, week, month and year views of every calendar you connect. Tasks drag into open time, or Auto Schedule places them around your events. |
-| **Tasks** | Everything you have to do as a list, a board or a spreadsheet-style sheet. The bar above the sheet shows the selected cell in full and edits it there. |
+| **Tasks** | Everything you have to do as a spreadsheet-style sheet or a board. The bar above the sheet shows the selected cell in full and edits it there. On a phone the sheet shows as rows. |
 
-The top bar is the same strip on every page. It holds the page's own views and actions, a count of what is open, due today and in danger, and a search field that opens the command palette (⌘K). On a phone, a page's views fold into one menu and its actions show as icons, so the bar stays one line.
+The top bar is the same strip on every page. It holds the page's own views and actions, a count of what is open, due today and in danger, and a search field (⌘K) that finds pages, tasks, events and what each module keeps (a person, a course file, a goal, a job), opens the page on what you pick, and runs commands. On Tasks it can also filter the sheet by what you typed. On a phone, a page's views fold into one menu and its actions show as icons, so the bar stays one line.
 
 ## Modules
 

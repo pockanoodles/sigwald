@@ -42,6 +42,7 @@ A module is split three ways so the browser bundle never pulls in server code.
 | `rankSignals` | What it tells Focus's ranking about tasks (below). |
 | `claimKeys`, `claimOptions` | Keys a goal can claim a task by beyond its source and project, and the claims the goal form offers. |
 | `proofItems` | Things it keeps that a boss can name as its proof, and how each one stands. |
+| `search` | What the top bar's search finds among what it keeps (People: a person; Courses: a course or a file), a group per kind of thing. Each hit links to the module's page opened on it, so the page reads its own param (`UrlAsk`). Asked only while it's on. |
 
 Which modules a person has on lives in the `UserModule` table, one row per module they've touched (`src/modules/state.ts`). No row means the module's default.
 

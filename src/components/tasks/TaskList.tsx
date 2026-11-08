@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { newDate } from "@/lib/date-utils";
 
@@ -8,7 +8,6 @@ import {
   TaskColumnId,
   useTaskListViewSettings,
 } from "@/store/taskListViewSettings";
-import { useTaskPageSettings } from "@/store/taskPageSettings";
 
 import { Task, TaskStatus } from "@/types/task";
 
@@ -34,6 +33,8 @@ interface TaskListProps {
   onStatusChange: (taskId: string, status: TaskStatus) => void;
   onInlineEdit: (task: TaskPatch) => void;
   onCreateSubtask: (parentId: string, title: string) => Promise<void>;
+  /** A task to open (the top bar's search): selected in the sheet, or opened when the sheet isn't showing it. */
+  reveal?: { id: string } | null;
 }
 
 type SortKey = ReturnType<typeof useTaskListViewSettings.getState>["sortBy"];
@@ -57,6 +58,7 @@ export function TaskList({
   onStatusChange,
   onInlineEdit,
   onCreateSubtask,
+  reveal,
 }: TaskListProps) {
   const isMobile = useIsMobile();
   const {
@@ -68,7 +70,6 @@ export function TaskList({
     setSortDirection,
     packetOpen,
   } = useTaskListViewSettings();
-  const { listStyle } = useTaskPageSettings();
   // The sheet's columns, the modules' included (Courses: Mat, Ladder: Goal);
   // a module column sorts by its own value.
   const lenses = useTasksLenses();
@@ -168,6 +169,23 @@ export function TaskList({
     });
   }, [view.visible, sortBy, sortDirection, columns]);
 
+  // The sheet selects a task it's showing. One it isn't (a phone's rows, or
+  // hidden by the mode, a filter or a goal tab) opens instead, rather than
+  // quietly changing filters you set. Decided once per ask, so a filter
+  // toggled later never yanks the cursor back to it.
+  const [sheetReveal, setSheetReveal] = useState<{ id: string } | null>(null);
+  useEffect(() => {
+    if (!reveal) return;
+    if (!isMobile && sortedTasks.some((t) => t.id === reveal.id)) {
+      setSheetReveal(reveal);
+      return;
+    }
+    const task = tasks.find((t) => t.id === reveal.id);
+    if (task) onEdit(task);
+    // Only a new ask opens it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reveal]);
+
   const groupedTasks = useMemo(
     () => groupTasksForListMode(sortedTasks, listMode),
     [sortedTasks, listMode]
@@ -175,9 +193,11 @@ export function TaskList({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <TaskListToolbar view={view} surface="list" />
+      <TaskListToolbar view={view} surface="sheet" />
 
-      {isMobile || listStyle === "rows" ? (
+      {/* The sheet is a desk view: a phone gets the same tasks as rows, which
+          a thumb can expand and edit. */}
+      {isMobile ? (
         sortedTasks.length === 0 ? (
           <div className="flex flex-1 items-center justify-center p-8">
             <p className="text-sm text-muted-foreground">
@@ -226,6 +246,7 @@ export function TaskList({
           onStatusChange={onStatusChange}
           onInlineEdit={onInlineEdit}
           packetOpen={packetOpen}
+          reveal={sheetReveal}
         />
       )}
     </div>

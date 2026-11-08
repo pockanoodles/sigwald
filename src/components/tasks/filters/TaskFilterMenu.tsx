@@ -2,7 +2,7 @@
 
 import { type ReactNode, useMemo } from "react";
 
-import { HiOutlineFilter } from "react-icons/hi";
+import { HiOutlineFilter, HiX } from "react-icons/hi";
 
 import {
   Popover,
@@ -39,25 +39,29 @@ import type { VisibleTasks } from "./use-visible-tasks";
  * progress"), and every value is one click with a count beside it: how many
  * rows have that value with every other filter in place. All the fields are
  * open at once, so there's nothing to drill into and nothing hidden behind a
- * submenu.
+ * submenu. Text is a filter like the others, and counts on the button like
+ * them: the page has no search box of its own (the top bar's search sets it).
  */
 
 const LABEL = "font-mono text-xs uppercase tracking-[0.08em]";
 
 export function TaskFilterMenu({ view }: { view: VisibleTasks }) {
   const conditions = useTaskListViewSettings((s) => s.conditions);
+  const search = useTaskListViewSettings((s) => s.search);
   const active = view.fields.filter((f) => isActiveCondition(conditions[f.id]));
+  const onCount = active.length + (search ? 1 : 0);
 
   // The button says what's on without opening the menu.
-  const summary = active
-    .map((f) =>
+  const summary = [
+    ...(search ? [`Text has “${search}”`] : []),
+    ...active.map((f) =>
       describeCondition(
         f,
         conditions[f.id],
         optionsWithPicked(f.options(view.parents), conditions[f.id])
       )
-    )
-    .join("\n");
+    ),
+  ].join("\n");
 
   return (
     <Popover>
@@ -65,20 +69,20 @@ export function TaskFilterMenu({ view }: { view: VisibleTasks }) {
         <button
           type="button"
           title={summary || "No filters"}
-          aria-label={active.length ? `Filter, ${active.length} on` : "Filter"}
+          aria-label={onCount ? `Filter, ${onCount} on` : "Filter"}
           className={cn(
             LABEL,
             "flex h-7 flex-none items-center gap-1.5 border px-2 transition-colors duration-150 data-[state=open]:border-foreground data-[state=open]:text-foreground",
-            active.length
+            onCount
               ? "border-foreground/40 text-foreground"
               : "border-border text-muted-foreground hover:text-foreground"
           )}
         >
           <HiOutlineFilter aria-hidden className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">Filter</span>
-          {active.length ? (
+          {onCount ? (
             <span className="bg-foreground px-1 tabular-nums text-background">
-              {active.length}
+              {onCount}
             </span>
           ) : null}
         </button>
@@ -97,6 +101,8 @@ export function TaskFilterMenu({ view }: { view: VisibleTasks }) {
 function FilterPanel({ view }: { view: VisibleTasks }) {
   const conditions = useTaskListViewSettings((s) => s.conditions);
   const showDeferred = useTaskListViewSettings((s) => s.showDeferred);
+  const search = useTaskListViewSettings((s) => s.search);
+  const setSearch = useTaskListViewSettings((s) => s.setSearch);
   const setCondition = useTaskListViewSettings((s) => s.setCondition);
   const setShowDeferred = useTaskListViewSettings((s) => s.setShowDeferred);
   const clearConditions = useTaskListViewSettings((s) => s.clearConditions);
@@ -130,7 +136,8 @@ function FilterPanel({ view }: { view: VisibleTasks }) {
     [parents, childrenOf, filters, mode]
   );
 
-  const anyActive = fields.some((f) => isActiveCondition(conditions[f.id]));
+  const anyActive =
+    Boolean(search) || fields.some((f) => isActiveCondition(conditions[f.id]));
   const atDefault =
     !showDeferred && sameConditions(conditions, DEFAULT_CONDITIONS);
 
@@ -173,6 +180,9 @@ function FilterPanel({ view }: { view: VisibleTasks }) {
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto py-1.5">
+        <FilterRow label="Text" active={Boolean(search)}>
+          <TextCondition value={search ?? ""} onChange={setSearch} />
+        </FilterRow>
         {rows.map(({ field, options, counts }) => (
           <FilterRow
             key={field.id}
@@ -201,7 +211,7 @@ function FilterPanel({ view }: { view: VisibleTasks }) {
               value: "show",
               label: "Show",
               title:
-                "Tasks deferred until later. A search always includes them.",
+                "Tasks deferred until later. A text filter always includes them.",
             }}
             count={deferred}
             picked={showDeferred}
@@ -221,12 +231,15 @@ function FilterPanel({ view }: { view: VisibleTasks }) {
 function FilterRow({
   label,
   condition,
+  active = isActiveCondition(condition),
   onToggleExclude,
   children,
 }: {
   label: string;
   condition?: FilterCondition;
-  /** Omitted for a row with no operator (Deferred). */
+  /** Whether it narrows anything; a field's condition says, by default. */
+  active?: boolean;
+  /** Omitted for a row with no operator (Text, Deferred). */
   onToggleExclude?: () => void;
   children: ReactNode;
 }) {
@@ -241,9 +254,7 @@ function FilterRow({
         className={cn(
           LABEL,
           "w-24 flex-none leading-7",
-          isActiveCondition(condition)
-            ? "text-foreground"
-            : "text-muted-foreground"
+          active ? "text-foreground" : "text-muted-foreground"
         )}
       >
         {label}
@@ -319,6 +330,39 @@ function ValueChip({
         {count}
       </span>
     </button>
+  );
+}
+
+/** The text a task must contain: its title, notes or a tag. Deferred tasks
+ *  match it too, so a term never comes back empty for a task you put off. */
+function TextCondition({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="relative w-full max-w-sm">
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Title, notes or tag contains…"
+        aria-label="Text the task contains"
+        className="h-7 w-full border border-border bg-transparent px-2 pr-7 font-mono text-xs text-foreground placeholder:text-muted-foreground focus:border-foreground focus:outline-none"
+      />
+      {value ? (
+        <button
+          type="button"
+          onClick={() => onChange("")}
+          aria-label="Clear text"
+          className="absolute right-1 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center text-muted-foreground hover:text-foreground"
+        >
+          <HiX className="h-3.5 w-3.5" />
+        </button>
+      ) : null}
+    </div>
   );
 }
 

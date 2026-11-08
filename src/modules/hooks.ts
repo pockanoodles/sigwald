@@ -2,8 +2,10 @@
  * What the core asks of every module, and the events it raises for them to
  * hear (server only).
  */
-import type { RankSignals } from "@/lib/sigwald/rank-stage1";
+import { logger } from "@/lib/logger";
 import type { Db, DbTransaction } from "@/lib/prisma";
+import type { SearchGroup, SearchQuery } from "@/lib/search/types";
+import type { RankSignals } from "@/lib/sigwald/rank-stage1";
 
 import { MODULES } from "@/modules";
 import {
@@ -128,4 +130,35 @@ export async function moduleClaimOptions(
     if (ask) options.push(...(await ask(db, userId)));
   }
   return options;
+}
+
+/**
+ * What the modules a person has on find for the top bar's search, in catalog
+ * order. A module whose search fails drops out rather than failing the rest.
+ */
+export async function moduleSearch(
+  db: Db,
+  userId: string,
+  q: SearchQuery,
+  isOn: (id: ModuleId) => boolean
+): Promise<SearchGroup[]> {
+  const asked = MODULES.flatMap((m) => {
+    const search = SERVER_MODULES[m.id].search;
+    return search && isOn(m.id)
+      ? [{ id: m.id, answer: search(db, userId, q) }]
+      : [];
+  });
+  const answers = await Promise.allSettled(asked.map((a) => a.answer));
+  return answers.flatMap((a, i) => {
+    if (a.status === "fulfilled") return a.value;
+    logger.error(
+      "Module search failed",
+      {
+        module: asked[i].id,
+        error: a.reason instanceof Error ? a.reason.message : String(a.reason),
+      },
+      "ModuleSearch"
+    );
+    return [];
+  });
 }

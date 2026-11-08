@@ -4,6 +4,7 @@ import {
   HiOutlineCalendar,
   HiOutlineClipboardList,
   HiOutlineCog,
+  HiOutlineHome,
   HiOutlineLightningBolt,
   HiOutlineMenu,
   HiOutlinePuzzle,
@@ -41,6 +42,17 @@ export function useNavigationCommands(): Command[] {
   });
 
   return [
+    {
+      id: "navigation.today",
+      title: "Go to Today",
+      keywords: ["navigation", "home", "queue", "dashboard"],
+      icon: HiOutlineHome,
+      section: "navigation",
+      shortcut: "gd",
+      perform: (router?: AppRouterInstance) => {
+        if (router) router.push("/today");
+      },
+    },
     {
       id: "navigation.calendar",
       title: "Go to Calendar",
