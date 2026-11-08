@@ -119,6 +119,12 @@ export async function PUT(
 
     return NextResponse.json(updated);
   } catch (error) {
+    // One cycle per person per hex (@@unique([userId, startDate, endDate])).
+    if ((error as { code?: unknown } | null)?.code === "P2002") {
+      return new NextResponse("A cycle already covers those dates", {
+        status: 409,
+      });
+    }
     logger.error(
       "Error updating goal cycle:",
       { error: error instanceof Error ? error.message : String(error) },

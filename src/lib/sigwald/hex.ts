@@ -94,8 +94,32 @@ export function hexDayRange(hex: Pick<Hex, "year" | "index">): {
  * respecced, the way the map's Current Build does, and seasons there don't
  * break at hex boundaries. A Build the vault set stays the vault's until the
  * next projection says otherwise.
+ *
+ * A hex's first requests arrive together (the page, the worker, the morning
+ * goal projection), and each used to find no cycle and make one: three
+ * copies on 2026-11-01, which later calls then took turns activating. The
+ * database now allows one cycle per person per hex, so the requests that
+ * lose that race fail to insert, and read the winner's instead.
  */
 export async function ensureCurrentHex(
+  prisma: Db,
+  userId: string
+): Promise<GoalCycle> {
+  try {
+    return await provisionCurrentHex(prisma, userId);
+  } catch (error) {
+    if (!isUniqueViolation(error)) throw error;
+    // Another request made this hex's cycle first: it's committed now.
+    return provisionCurrentHex(prisma, userId);
+  }
+}
+
+/** Prisma's unique-constraint error, read by its code so this file stays browser-safe. */
+function isUniqueViolation(error: unknown): boolean {
+  return (error as { code?: unknown } | null)?.code === "P2002";
+}
+
+async function provisionCurrentHex(
   prisma: Db,
   userId: string
 ): Promise<GoalCycle> {
