@@ -10,6 +10,8 @@ import {
   startOfDay,
   taskDay,
 } from "@/lib/date-utils";
+import { dueBy } from "@/lib/sigwald/due";
+import { deferralHides } from "@/lib/sigwald/rank-stage1";
 
 import {
   EnergyLevel,
@@ -33,18 +35,30 @@ export const isUpcomingTask = (task: Pick<Task, "startDate">): boolean => {
 };
 
 /**
- * A task is deferred when `postponedUntil` is still in the future. Instant
- * comparison, not day-granularity: Focus skip-style "in 3 hours" and a
- * calendar-day defer both hide until that moment. `startDate` is the
- * scheduler's earliest-work field (Outlook/Google sync) and is not a hide
- * signal — TaskRow Defer writes `postponedUntil`.
+ * A task is deferred when `postponedUntil` is still in the future and it
+ * isn't due before then. Instant comparison, not day-granularity: a defer "in
+ * 3 hours" and a calendar-day defer both hide until that moment. A task due
+ * before its deferral ends is never hidden (rank-stage1 `deferralHides`):
+ * Later on tonight's assignment must not take it off the sheet. `startDate`
+ * is the scheduler's earliest-work field (Outlook/Google sync) and is not a
+ * hide signal — TaskRow Defer writes `postponedUntil`.
  */
 export const isDeferredTask = (
-  task: Pick<Task, "postponedUntil">,
-  now: Date = newDate()
+  task: Pick<Task, "postponedUntil" | "dueDate" | "source">,
+  now: Date = newDate(),
+  timeZone: string = Intl.DateTimeFormat().resolvedOptions().timeZone
 ): boolean => {
   if (!task.postponedUntil) return false;
-  return newDate(task.postponedUntil).getTime() > now.getTime();
+  return deferralHides(
+    {
+      postponedUntil: newDate(task.postponedUntil),
+      // The moment it's due by: a date picked without a time runs to the end of that day.
+      dueDate: task.dueDate
+        ? dueBy(newDate(task.dueDate), task.source, timeZone)
+        : null,
+    },
+    now
+  );
 };
 
 /**

@@ -3,13 +3,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import Link from "next/link";
+
 import { v4 as uuidv4 } from "uuid";
 
 import { Button } from "@/components/ui/button";
 
+import { formatEventTime } from "@/lib/calendar-event-display";
 import { endOfDay, newDate } from "@/lib/date-utils";
-import { type FocusQueueTask, parseTaskFromApi } from "@/lib/sigwald/parse-task";
+import {
+  type FocusQueueTask,
+  parseTaskFromApi,
+} from "@/lib/sigwald/parse-task";
 
+import { useSettingsStore } from "@/store/settings";
 import { useTaskStore } from "@/store/task";
 
 import type { BriefingData } from "@/types/focus-briefing";
@@ -33,6 +39,8 @@ function localDayKey(): string {
 
 interface QueueResponse {
   ranked: Record<string, unknown>[];
+  /** Every open task, including ones Focus passes over (Today's list). */
+  inventory?: Record<string, unknown>[];
   briefing?: Record<string, unknown>;
 }
 
@@ -80,7 +88,12 @@ export function SigwaldFocusMode() {
         const boost = sessionStorage.getItem(STORAGE_FOCUS_BOOST);
         if (boost) {
           sessionStorage.removeItem(STORAGE_FOCUS_BOOST);
-          const t = list.find((x) => x.id === boost);
+          // Opened from Today, the task may be one the queue passes over
+          // (resting, or longer than the free slot): it's in the full list.
+          const raw = (data.inventory ?? []).find((x) => x.id === boost);
+          const t =
+            list.find((x) => x.id === boost) ??
+            (raw ? parseTaskFromApi(raw) : undefined);
           if (t) {
             list = [t, ...list.filter((x) => x.id !== boost)];
           }
@@ -200,6 +213,8 @@ export function SigwaldFocusMode() {
     }
   };
 
+  const timeFormat = useSettingsStore((st) => st.user.timeFormat);
+
   const handleSkip = async () => {
     if (!top) {
       return;
@@ -216,14 +231,17 @@ export function SigwaldFocusMode() {
       // `lastSkippedAt`, which nothing outside the focus queue reads, and the
       // extra round-trip only lengthened the gap before the next card.
       const next = await loadQueue({ background: true });
-      // Cooling is a sort key, not a filter, so when it's the only task left —
-      // or everything else is already cooling — the same card comes back. Say
-      // so, otherwise the button silently does nothing.
+      // Resting is a sort key, not a filter, so when it's the only task left
+      // — or everything else already rests — the same card comes back. So
+      // does one due too soon to rest at all. Say which, otherwise the button
+      // silently does nothing.
       if (next && next[0]?.id === top.id) {
         setNotice(
-          next.length === 1
-            ? "That's the only task in your queue right now."
-            : "Everything else is already skipped — this is still the top one."
+          !next[0].sigwald?.resting
+            ? tooCloseToPutOff(next[0])
+            : next.length === 1
+              ? "That's the only task in your queue right now."
+              : "Everything else is already skipped — this is still the top one."
         );
       }
     } catch (e) {
@@ -234,8 +252,9 @@ export function SigwaldFocusMode() {
   };
 
   /**
-   * Hide the task until the end of today. Same stamp as TaskRow's
-   * "Later today" preset — Focus already drops future `postponedUntil`.
+   * Put the task off until the end of today. Same stamp as TaskRow's
+   * "Later today" preset. One due before then isn't hidden: it stays on Today
+   * and comes back to Focus ahead of its deadline (rank-stage1 `restOf`).
    */
   const handleLater = async () => {
     if (!top) {
@@ -243,19 +262,32 @@ export function SigwaldFocusMode() {
     }
     setActing(true);
     setNotice(null);
+    const until = endOfDay(newDate());
     try {
       const res = await fetch(`/api/tasks/${top.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          postponedUntil: endOfDay(newDate()).toISOString(),
-        }),
+        body: JSON.stringify({ postponedUntil: until.toISOString() }),
       });
       if (!res.ok) {
         throw new Error("Could not defer task");
       }
       await fetchTasks();
-      await loadQueue({ background: true });
+      const next = await loadQueue({ background: true });
+      const after = next?.find((t) => t.id === top.id);
+      if (after && !after.sigwald?.resting) {
+        setNotice(tooCloseToPutOff(after));
+      } else if (
+        after?.sigwald?.resting &&
+        new Date(after.sigwald.resting.until) < until
+      ) {
+        setNotice(
+          `It's due before the day ends, so it's back here at ${formatEventTime(
+            new Date(after.sigwald.resting.until),
+            timeFormat
+          )}.`
+        );
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not defer task");
     } finally {
@@ -493,4 +525,10 @@ export function SigwaldFocusMode() {
       />
     </div>
   );
+}
+
+/** Why Skip or Later left a task where it was: it's due too soon to put off. */
+function tooCloseToPutOff(task: FocusQueueTask): string {
+  const left = task.sigwald?.countdownHuman;
+  return `${left ? `${left}: ` : ""}too close to its deadline to put off. Mark it done if it's handled.`;
 }

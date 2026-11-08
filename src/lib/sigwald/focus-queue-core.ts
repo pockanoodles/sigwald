@@ -6,6 +6,7 @@
 import type { Prisma } from "@prisma/client";
 
 import { newDate } from "@/lib/date-utils";
+import { prisma } from "@/lib/prisma";
 import {
   computeSigwaldAvailabilitySummary,
   filterTasksByAvailabilityCapacity,
@@ -15,13 +16,14 @@ import { dueBy } from "@/lib/sigwald/due";
 import { openWorkWhere } from "@/lib/sigwald/open-work";
 import {
   type RankSignals,
+  type Rest,
   type TaskForRanking,
   filterTasksForRanking,
   isDangerResolved,
   orderTasksStage1,
+  restOf,
   stage1MetaForTasks,
 } from "@/lib/sigwald/rank-stage1";
-import { prisma } from "@/lib/prisma";
 import { userTimeZone } from "@/lib/user-time-zone";
 
 import { moduleRankSignals, moduleTaskFacts } from "@/modules/hooks";
@@ -94,8 +96,17 @@ export interface FocusQueueCoreResult {
   minimal: TaskForRanking[];
   filtered: TaskForRanking[];
   slotAware: TaskForRanking[];
+  /** What to do next: tasks that fit the free slot, resting ones last (Focus, ops' top task). */
   ordered: TaskForRanking[];
   meta: ReturnType<typeof stage1MetaForTasks>;
+  /**
+   * Every open task in its place on its merits, whether it rests or fits the
+   * free slot (Today). Nothing open is missing from it.
+   */
+  inventory: TaskForRanking[];
+  inventoryMeta: ReturnType<typeof stage1MetaForTasks>;
+  /** Which tasks rest (skipped or put off), and until when. */
+  rests: Map<string, Rest>;
   availability: Awaited<ReturnType<typeof computeSigwaldAvailabilitySummary>>;
   slotMinutesForRank: number | null;
   /** The person's zone, which the due dates above were read in. */
@@ -115,7 +126,11 @@ export async function buildFocusQueueCore(
   ]);
 
   const rows = await prisma.task.findMany({
-    where: openWorkWhere(userId, now, modules.hidden),
+    // Deferred tasks with a due date too: one due before its deferral ends
+    // stays listed (filterTasksForRanking → deferralHides).
+    where: openWorkWhere(userId, now, modules.hidden, {
+      deferredWithDue: true,
+    }),
     include: {
       tags: true,
       project: true,
@@ -150,6 +165,26 @@ export async function buildFocusQueueCore(
 
   const meta = stage1MetaForTasks(ordered, slotAware, now, slotMinutesForRank);
 
+  // Today lists everything open: a task that's resting or too long for the
+  // free slot stays in its place, since a list that drops due work is how a
+  // deadline gets missed.
+  const inventory = orderTasksStage1(filtered, now, {
+    slotMinutes: slotMinutesForRank,
+    restingLast: false,
+  });
+  const inventoryMeta = stage1MetaForTasks(
+    inventory,
+    filtered,
+    now,
+    slotMinutesForRank
+  );
+  const rests = new Map(
+    filtered.flatMap((t) => {
+      const rest = restOf(t, now);
+      return rest ? [[t.id, rest] as const] : [];
+    })
+  );
+
   const danger = new Set(
     filtered.filter((t) => isDangerResolved(t, now)).map((t) => t.id)
   );
@@ -168,6 +203,9 @@ export async function buildFocusQueueCore(
     slotAware,
     ordered,
     meta,
+    inventory,
+    inventoryMeta,
+    rests,
     availability,
     slotMinutesForRank,
     timeZone,
