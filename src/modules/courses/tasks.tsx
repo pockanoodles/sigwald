@@ -3,7 +3,8 @@
 /**
  * Courses on the Tasks page (its Tasks lens, components/tasks/lens.ts): the
  * sheet's Mat column, read off the `materialCount` fact Courses adds to its
- * tasks, and the Course and Submission filters (task-filters.ts). They leave
+ * tasks, the course code on a phone row and a board card (the `courseLabel`
+ * fact), and the Course and Submission filters (task-filters.ts). They leave
  * the page while Courses is off.
  */
 import { useMemo } from "react";
@@ -68,6 +69,7 @@ export function useCoursesTasksLens(): TasksLens | null {
         ? {
             columns: [MATERIALS_COLUMN],
             filters: [COURSE_FILTER, SUBMISSION_FILTER],
+            rowLabel: (task: Task) => task.courseLabel ?? null,
           }
         : null,
     [on]

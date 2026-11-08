@@ -83,12 +83,13 @@ export default function TasksPage() {
     }
   };
 
-  const handleDeleteTask = async (taskId: string) => {
-    if (confirm("Are you sure you want to delete this task?")) {
-      await deleteTask(taskId);
-      await fetchTasks();
-      await fetchProjects();
-    }
+  /** Asks first; says whether it deleted. */
+  const handleDeleteTask = async (taskId: string): Promise<boolean> => {
+    if (!confirm("Are you sure you want to delete this task?")) return false;
+    await deleteTask(taskId);
+    await fetchTasks();
+    await fetchProjects();
+    return true;
   };
 
   const handleStatusChange = async (taskId: string, status: TaskStatus) => {
@@ -151,7 +152,6 @@ export default function TasksPage() {
             <BoardView
               tasks={tasks}
               onEdit={openEdit}
-              onDelete={handleDeleteTask}
               onStatusChange={handleStatusChange}
               onInlineEdit={handleInlineEdit}
             />
@@ -178,6 +178,9 @@ export default function TasksPage() {
           tags={tags}
           onCreateTag={handleCreateTag}
           initialGoalId={initialGoalId}
+          onDelete={async (id) => {
+            if (await handleDeleteTask(id)) close();
+          }}
         />
 
         {loading && (

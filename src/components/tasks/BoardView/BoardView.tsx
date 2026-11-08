@@ -1,14 +1,29 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
-import { DndContext, DragEndEvent } from "@dnd-kit/core";
+import {
+  DndContext,
+  type DragEndEvent,
+  DragOverlay,
+  type DragStartEvent,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+
+import { newDate } from "@/lib/date-utils";
 
 import { Task, TaskStatus } from "@/types/task";
 
 import { TaskListToolbar } from "../TaskListToolbar";
+import type { TaskPatch } from "../datasheet/columns";
 import { useVisibleTasks } from "../filters/use-visible-tasks";
+import { CardFace } from "./BoardCard";
 import { Column } from "./Column";
+import { BOARD_STATUSES, arrangeBoard } from "./arrange";
 
 /** The board's columns are the statuses, so its filters leave Status to them. */
 const BOARD_OMITS = ["status"] as const;
@@ -16,64 +31,89 @@ const BOARD_OMITS = ["status"] as const;
 interface BoardViewProps {
   tasks: Task[];
   onEdit: (task: Task) => void;
-  onDelete: (taskId: string) => void;
   onStatusChange: (taskId: string, status: TaskStatus) => void;
-  onInlineEdit: (task: Task & { goalId?: string | null }) => void;
+  onInlineEdit: (task: TaskPatch) => void;
 }
 
+/**
+ * The tasks as a board, one column per status. It runs the sheet's pipeline
+ * (lenses, filters, text, list mode) but orders each column for moving work:
+ * open work by deadline, finished work newest first. Dragging a card to a
+ * column sets its status; clicking it opens it. The card follows the pointer
+ * in an overlay, so it isn't clipped by its column as it leaves.
+ */
 export function BoardView({
   tasks,
   onEdit,
-  onDelete,
   onStatusChange,
   onInlineEdit,
 }: BoardViewProps) {
-  // The list's pipeline: lenses, filters, search and list mode.
   const view = useVisibleTasks(tasks, BOARD_OMITS);
-  const filteredTasks = view.visible;
+  const [dragging, setDragging] = useState<Task | null>(null);
 
-  // Group tasks by status
-  const columns = useMemo(() => {
-    const grouped = Object.values(TaskStatus).reduce(
-      (acc, status) => {
-        acc[status] = filteredTasks.filter((task) => task.status === status);
-        return acc;
-      },
-      {} as Record<TaskStatus, Task[]>
-    );
-    return grouped;
-  }, [filteredTasks]);
+  // A press only becomes a drag once it moves (or, on a phone, holds), so a
+  // click opens the card and a swipe scrolls the column.
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 250, tolerance: 5 },
+    }),
+    useSensor(KeyboardSensor)
+  );
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
+  const columns = useMemo(
+    () => arrangeBoard(view.visible, newDate()),
+    [view.visible]
+  );
 
-    if (!over) return;
+  const onDragStart = ({ active }: DragStartEvent) =>
+    setDragging(view.visible.find((t) => t.id === active.id) ?? null);
 
-    const taskId = active.id as string;
-    const newStatus = over.id as TaskStatus;
-
-    if (Object.values(TaskStatus).includes(newStatus)) {
-      onStatusChange(taskId, newStatus);
+  const onDragEnd = ({ active, over }: DragEndEvent) => {
+    setDragging(null);
+    const status = over?.id as TaskStatus | undefined;
+    const task = view.visible.find((t) => t.id === active.id);
+    if (
+      task &&
+      status &&
+      BOARD_STATUSES.includes(status) &&
+      status !== task.status
+    ) {
+      onStatusChange(task.id, status);
     }
   };
 
   return (
     <div className="flex h-full flex-col bg-background">
       <TaskListToolbar view={view} surface="board" />
-      <div className="flex flex-1 snap-x snap-mandatory gap-3 overflow-auto p-3 md:snap-none md:gap-6 md:p-6">
-        <DndContext onDragEnd={handleDragEnd}>
-          {Object.values(TaskStatus).map((status) => (
+      <DndContext
+        sensors={sensors}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+        onDragCancel={() => setDragging(null)}
+      >
+        <div className="flex min-h-0 flex-1 snap-x snap-mandatory gap-2 overflow-x-auto p-2 md:snap-none md:gap-3 md:p-3">
+          {columns.map(({ status, tasks: list, shown }) => (
             <Column
               key={status}
               status={status}
-              tasks={columns[status]}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              onInlineEdit={onInlineEdit}
+              tasks={list}
+              shown={shown}
+              onOpen={onEdit}
+              onStatusChange={onStatusChange}
+              onPatch={onInlineEdit}
             />
           ))}
-        </DndContext>
-      </div>
+        </div>
+        <DragOverlay dropAnimation={null}>
+          {dragging ? (
+            <CardFace
+              task={dragging}
+              className="w-72 cursor-grabbing border-foreground/40 shadow-lg"
+            />
+          ) : null}
+        </DragOverlay>
+      </DndContext>
     </div>
   );
 }

@@ -40,6 +40,8 @@ import {
   TimePreference,
 } from "@/types/task";
 
+import { formatEnumValue } from "./utils/task-list-utils";
+
 interface TaskModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -50,6 +52,11 @@ interface TaskModalProps {
   initialProjectId?: string | null;
   /** Pre-links a created task to a goal (the Tasks page's open goal tab). */
   initialGoalId?: string | null;
+  /**
+   * Offers Delete while editing. The caller confirms and closes: the board's
+   * cards carry no delete of their own, so this is where it lives.
+   */
+  onDelete?: (taskId: string) => Promise<void> | void;
 }
 
 /** Date -> the "YYYY-MM-DDTHH:mm" a `datetime-local` input expects, in local
@@ -62,15 +69,6 @@ const toDateTimeInput = (value: Date | string | null | undefined): string => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
     d.getHours()
   )}:${pad(d.getMinutes())}`;
-};
-
-//TODO: move to utils
-const formatEnumValue = (value: string) => {
-  return value
-    .toLowerCase()
-    .split("_")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
 };
 
 // Helper function to convert external recurrence rule to RRule format
@@ -103,6 +101,7 @@ export function TaskModal({
   onCreateTag,
   initialProjectId,
   initialGoalId,
+  onDelete,
 }: TaskModalProps) {
   const { projects } = useProjectStore();
   const [title, setTitle] = useState("");
@@ -829,6 +828,16 @@ export function TaskModal({
           </div>
 
           <div className="flex justify-end gap-3 border-t pt-4">
+            {task && onDelete ? (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => void onDelete(task.id)}
+                className="mr-auto text-destructive hover:text-destructive"
+              >
+                Delete
+              </Button>
+            ) : null}
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>

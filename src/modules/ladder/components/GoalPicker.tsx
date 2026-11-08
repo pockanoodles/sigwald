@@ -65,17 +65,19 @@ export function GoalPicker({ task, onPatch, variant }: TaskControlProps) {
       value={current?.id || "none"}
       onValueChange={(value) => choose(value === "none" ? null : value)}
     >
+      {/* Sized to sit in the card's meta line: the shared trigger is a
+          full-width 14px field, which put this chip on a line of its own. */}
       <SelectTrigger
         className={cn(
-          "h-auto gap-1 border-none bg-transparent p-0 text-xs shadow-none transition-colors duration-150 focus:ring-0",
+          "h-auto w-auto max-w-full justify-start gap-1 border-none bg-transparent p-0 font-mono text-[11px] shadow-none transition-colors duration-150 focus:ring-0 md:text-[11px] [&>svg:last-child]:h-3 [&>svg:last-child]:w-3",
           current
             ? "text-muted-foreground hover:text-foreground"
             : "text-muted-foreground/50 hover:text-foreground"
         )}
         title="Link to a goal"
       >
-        <span className="flex items-center gap-1">
-          <HiFlag className="h-3 w-3 flex-none" />
+        <HiFlag className="h-3 w-3 flex-none" />
+        <span className="truncate">
           {current
             ? current.title
             : task.goalLinks?.length
