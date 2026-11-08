@@ -19,27 +19,34 @@ const VISIBILITY_BOOST = 0.15;
 const LATE_PENALTY_PER_DAY = 0.1;
 
 /**
- * Skip handling (spec §5.3.6 named the signal but only Stage 2 ever scored it,
- * so until now Skip incremented `skipCount`/`lastSkippedAt` and changed nothing
- * — the refetched queue returned the identical order and re-served the same
- * card). Two mechanisms, deliberately separate:
+ * Skip and Later (spec §5.3.6 named the skip signal but only Stage 2 ever
+ * scored it, so Skip once incremented `skipCount`/`lastSkippedAt` and changed
+ * nothing — the refetched queue re-served the same card). Two mechanisms,
+ * deliberately separate:
  *
- * 1. A hard cooldown. Inside the window a task is "cooling" and sorts below
- *    every non-cooling candidate, ahead of the score entirely. It has to
+ * 1. A rest. A skipped task rests for four hours; a task put off with Later
+ *    rests until its `postponedUntil`. Resting sorts it below every task
+ *    that isn't, ahead of the score entirely, so Focus moves on. It has to
  *    outrank DANGER: the task you skipped is usually top *because* it is
  *    urgent, and a score-only penalty would leave it at #1 — which is the bug.
- *    Cooling is a sort key, never a filter, so if everything is cooling the
- *    normal order still applies and Focus never runs dry.
- * 2. A decaying score penalty that outlives the cooldown, so a task you keep
+ *    Resting is a sort key, never a filter, so if everything rests the
+ *    normal order still applies and Focus never runs dry. And a rest never
+ *    runs past the deadline: it ends `restLeadMinutes` before the task is
+ *    due, and inside that window there's nothing left to put off (see
+ *    `restOf`). Today ignores rests altogether: it lists everything in its
+ *    place and marks what rests (`orderTasksStage1`'s `restingLast`).
+ * 2. A decaying score penalty that outlives the rest, so a task you keep
  *    skipping drifts down instead of bouncing back to #1 every four hours.
  *    It halves every two days, so genuine avoidance costs a task its lead
  *    while a single skip on a busy afternoon is forgotten by the weekend.
  *
  * Escalation still wins in the end: `isSkipSpiralDanger` promotes a
  * high-impact task with a near deadline once it has been skipped three times,
- * and that fires as soon as the cooldown lapses.
+ * and that fires as soon as the rest ends.
  */
 const SKIP_COOLDOWN_HOURS = 4;
+/** Time kept free before a deadline on top of the task's own effort. */
+const REST_SLACK_MINUTES = 60;
 const SKIP_PENALTY_PER_SKIP = 0.05;
 const SKIP_PENALTY_MAX = 0.2;
 const SKIP_PENALTY_HALF_LIFE_HOURS = 48;
@@ -144,13 +151,73 @@ function hoursSinceSkip(task: TaskForRanking, now: Date): number | null {
   return Math.max(0, h);
 }
 
+/** Why a task rests and until when; see the note above SKIP_COOLDOWN_HOURS. */
+export interface Rest {
+  reason: "skipped" | "later";
+  until: Date;
+}
+
 /**
- * Whether a task is inside its post-skip cooldown and must not lead the queue.
- * See the SKIP_* constants for why this ranks above DANGER.
+ * How long before its deadline a task stops resting: its effort plus an hour,
+ * so it's back in Focus with time to do it.
  */
-export function isSkipCooling(task: TaskForRanking, now: Date): boolean {
+export function restLeadMinutes(
+  task: Pick<TaskForRanking, "duration">
+): number {
+  return (task.duration ?? 30) + REST_SLACK_MINUTES;
+}
+
+/**
+ * Whether a task rests, and until when: whichever of its skip and its Later
+ * ends last, cut short `restLeadMinutes` before a deadline still ahead. Null
+ * when it doesn't rest, including a task already inside that window: one due
+ * that soon can't be put off, only done. Work already overdue rests as asked,
+ * since there's no deadline left to protect.
+ */
+export function restOf(task: TaskForRanking, now: Date): Rest | null {
+  const rests: Rest[] = [];
   const h = hoursSinceSkip(task, now);
-  return h != null && h < SKIP_COOLDOWN_HOURS;
+  if (h != null && h < SKIP_COOLDOWN_HOURS) {
+    rests.push({
+      reason: "skipped",
+      until: new Date(now.getTime() + (SKIP_COOLDOWN_HOURS - h) * 3_600_000),
+    });
+  }
+  if (task.postponedUntil && new Date(task.postponedUntil) > now) {
+    rests.push({ reason: "later", until: new Date(task.postponedUntil) });
+  }
+  if (rests.length === 0) {
+    return null;
+  }
+  let rest = rests.reduce((a, b) => (b.until > a.until ? b : a));
+  const due = task.dueDate ? new Date(task.dueDate) : null;
+  if (due && due > now) {
+    const latest = new Date(due.getTime() - restLeadMinutes(task) * 60_000);
+    if (latest < rest.until) {
+      rest = { ...rest, until: latest };
+    }
+  }
+  return rest.until > now ? rest : null;
+}
+
+/**
+ * Whether a Later or a Defer hides a task from every list right now. It
+ * doesn't when the task is due before the deferral ends: then it stays on
+ * Today, marked, and only rests in Focus (`restOf`) — putting work off must
+ * never hide it past its deadline.
+ */
+export function deferralHides(
+  task: Pick<TaskForRanking, "postponedUntil" | "dueDate">,
+  now: Date
+): boolean {
+  if (!task.postponedUntil) {
+    return false;
+  }
+  const until = new Date(task.postponedUntil);
+  if (until <= now) {
+    return false;
+  }
+  return !(task.dueDate && new Date(task.dueDate) <= until);
 }
 
 /**
@@ -379,8 +446,8 @@ export interface Stage1Scores {
   urgencyTier: UrgencyTier;
   danger: boolean;
   fillerDemoted: boolean;
-  /** Inside the post-skip cooldown: sorted below everything else. */
-  skipCooling: boolean;
+  /** Skipped or put off (`restOf`): Focus sorts it below everything else. */
+  resting: boolean;
 }
 
 export function computeStage1Scores(
@@ -413,7 +480,7 @@ export function computeStage1Scores(
     urgencyTier,
     danger,
     fillerDemoted: demote,
-    skipCooling: isSkipCooling(task, now),
+    resting: restOf(task, now) != null,
   };
 }
 
@@ -440,7 +507,7 @@ export function filterTasksForRanking(
     if (t.unlockAt && new Date(t.unlockAt) > now) {
       return false;
     }
-    if (t.postponedUntil && new Date(t.postponedUntil) > now) {
+    if (deferralHides(t, now)) {
       return false;
     }
     return true;
@@ -449,18 +516,25 @@ export function filterTasksForRanking(
 
 export interface OrderStage1Options {
   slotMinutes: number | null;
+  /**
+   * Sort resting tasks last: what to do next (Focus, and ops' "top task").
+   * False keeps every task in its place on its merits: the full list (Today),
+   * which marks what rests instead of moving it. Defaults to true.
+   */
+  restingLast?: boolean;
 }
 
 /**
- * Ordering: post-skip cooldown, then filler demotion when work with impact is
- * urgent, then DANGER, then base score, then due, title.
+ * Ordering: resting (unless `restingLast` is false), then filler demotion
+ * when work with impact is urgent, then DANGER, then base score, then due,
+ * title.
  */
 export function orderTasksStage1(
   tasks: TaskForRanking[],
   now: Date,
   options: OrderStage1Options
 ): TaskForRanking[] {
-  const { slotMinutes } = options;
+  const { slotMinutes, restingLast = true } = options;
   if (tasks.length === 0) {
     return [];
   }
@@ -473,12 +547,14 @@ export function orderTasksStage1(
 
   scored.sort((a, b) => {
     // Outermost key, above DANGER: skipping a task has to move you on even
-    // when that task is the urgent one. If every candidate is cooling this
+    // when that task is the urgent one. If every candidate rests this
     // compares equal and the rest of the ordering takes over unchanged.
-    const ca = a.skipCooling ? 1 : 0;
-    const cb = b.skipCooling ? 1 : 0;
-    if (ca !== cb) {
-      return ca - cb;
+    if (restingLast) {
+      const ra = a.resting ? 1 : 0;
+      const rb = b.resting ? 1 : 0;
+      if (ra !== rb) {
+        return ra - rb;
+      }
     }
     const da = a.fillerDemoted ? 1 : 0;
     const db = b.fillerDemoted ? 1 : 0;

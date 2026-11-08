@@ -54,7 +54,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const [selected, setSelected] = useState("");
   const { searchCommands, executeCommand, getAllCommands } = useCommands();
   const search = useSearch(query, open);
-  const queue = useSigwaldStatusStore((s) => s.tasks);
+  const queue = useSigwaldStatusStore((s) => s.next);
   const setTaskText = useTaskListViewSettings((s) => s.setSearch);
 
   const text = query.trim();

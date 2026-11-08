@@ -12,18 +12,23 @@ import { FirstRun } from "@/components/today/FirstRun";
 import { Button } from "@/components/ui/button";
 import { SwipeableRow } from "@/components/ui/swipeable-row";
 
+import { formatEventTime } from "@/lib/calendar-event-display";
 import { isDueToday } from "@/lib/sigwald/due";
-import { type FocusQueueTask, primaryLadderGoal } from "@/lib/sigwald/parse-task";
+import {
+  type FocusQueueTask,
+  primaryLadderGoal,
+} from "@/lib/sigwald/parse-task";
 import { cn } from "@/lib/utils";
 
 import { CLIENT_MODULES } from "@/modules/client";
 
+import { useModuleOn, useOnModules } from "@/store/modules";
+import { useSettingsStore } from "@/store/settings";
 import {
   countDanger,
   countDueToday,
   useSigwaldStatusStore,
 } from "@/store/sigwaldStatus";
-import { useModuleOn, useOnModules } from "@/store/modules";
 
 // Tier idiom, mirrored from FocusDesk so the whole app reads danger/urgency
 // the same way: DANGER = red, HIGH-and-due-today = amber, else quiet.
@@ -42,6 +47,23 @@ function tierRowAccent(task: FocusQueueTask): string {
 // markers so the queue reads as plain text.
 function plainTitle(s: string): string {
   return s.replace(/\*\*/g, "").replace(/`/g, "");
+}
+
+/**
+ * "Skipped · back 4:51 PM": a task Focus is passing over for now. Today keeps
+ * it in its place and says so, rather than sinking or hiding it; the time is
+ * when Focus serves it again, which is always before it's due.
+ */
+function RestMark({ task }: { task: FocusQueueTask }) {
+  const timeFormat = useSettingsStore((s) => s.user.timeFormat);
+  const rest = task.sigwald?.resting;
+  if (!rest) return null;
+  return (
+    <span className="flex-none">
+      {rest.reason === "skipped" ? "Skipped" : "Later"} · back{" "}
+      {formatEventTime(new Date(rest.until), timeFormat)}
+    </span>
+  );
 }
 
 function tierBadge(
@@ -216,6 +238,11 @@ export function CommandDashboard() {
                           </span>
                         </span>
                         <span className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-muted-foreground">
+                          <RestMark task={task} />
+                          {task.sigwald?.resting &&
+                            task.sigwald.countdownHuman && (
+                              <span aria-hidden>·</span>
+                            )}
                           {task.sigwald?.countdownHuman && (
                             <span>{task.sigwald.countdownHuman}</span>
                           )}
@@ -336,6 +363,10 @@ function LadderPanel({
           {plainTitle(task.title)}
         </h2>
         <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+          <RestMark task={task} />
+          {task.sigwald?.resting && task.sigwald.countdownHuman && (
+            <span aria-hidden>·</span>
+          )}
           {task.sigwald?.countdownHuman && (
             <span>{task.sigwald.countdownHuman}</span>
           )}

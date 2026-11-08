@@ -186,15 +186,17 @@ The score alone does not set the order. Tasks are sorted by the keys below in tu
 
 ```mermaid
 flowchart TD
-    A["Open tasks"] --> B["Drop done, locked, deferred and subtasks"]
-    B --> C{"Skipped in the last 4 hours?"}
-    C -- yes --> Z["Sorted last"]
+    A["Open tasks"] --> B["Drop done, locked and subtasks, and deferred work not due before the deferral ends"]
+    B --> C{"Resting: skipped or put off with Later?"}
+    C -- yes --> Z["Sorted last in Focus"]
     C -- no --> D{"Nothing vouches for it, while work with stakes is in danger or due within a day?"}
     D -- yes --> Y["Waits below that work"]
     D -- no --> E{"In danger?"}
     E -- yes --> X["Sorted first"]
     E -- no --> W["Sorted by base score, then due date, then title"]
 ```
+
+Skip rests a task for four hours and Later until the end of the day, but a rest always ends the task's effort plus an hour before it's due, and a task due sooner than that can't be put off at all. Today doesn't sort by rest: it lists every open task in its place, including work longer than your free time right now, and marks a resting one with when Focus will serve it again ("Skipped · back 4:51 PM"), so nothing due drops out of sight.
 
 A task is in danger when it is overdue, when less than three times its estimated effort remains before the due date, or when it has been skipped three times, has an impact above 0.5 and is due within five days. A task nothing vouches for has no impact from its module, no goal behind it and no high priority, and it waits while work with stakes is in danger or due within a day. A task linked to a goal always competes in the main pool, which is how a workout or a reach-out that serves a goal holds its place. The ranker itself names no module, since impact, a goal's lift and a task's stakes all reach it from the modules that are on.
 

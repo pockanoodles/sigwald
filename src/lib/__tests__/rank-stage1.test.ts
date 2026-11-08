@@ -3,15 +3,16 @@ import {
   computeStage1Scores,
   computeUrgencyTier,
   deadlinePressure,
+  deferralHides,
   effectiveImpact,
   effectiveLift,
   effortFit,
   filterTasksForRanking,
   impactWorkIsUrgent,
   isFillerCandidate,
-  isSkipCooling,
   orderTasksStage1,
   pickTopTaskStage1,
+  restOf,
   skipPenalty,
   visibilityBoost,
 } from "../sigwald/rank-stage1";
@@ -215,6 +216,12 @@ describe("filterTasksForRanking", () => {
     expect(filterTasksForRanking([deferred], NOW)).toHaveLength(0);
   });
 
+  test("keeps a deferred task that's due before its deferral ends", () => {
+    // Later on an assignment due tonight used to hide it until after it was due.
+    const dueTonight = makeTask({ postponedUntil: at(12), dueDate: at(11) });
+    expect(filterTasksForRanking([dueTonight], NOW)).toHaveLength(1);
+  });
+
   test("keeps a task whose defer time has passed", () => {
     const due = makeTask({ postponedUntil: at(-1) });
     expect(filterTasksForRanking([due], NOW)).toHaveLength(1);
@@ -407,24 +414,25 @@ describe("pickTopTaskStage1", () => {
 });
 
 describe("skip cooldown", () => {
-  test("a task not skipped is never cooling and takes no penalty", () => {
+  test("a task not skipped never rests and takes no penalty", () => {
     const task = makeTask({ skipCount: 3, lastSkippedAt: null });
-    expect(isSkipCooling(task, NOW)).toBe(false);
+    expect(restOf(task, NOW)).toBeNull();
     expect(skipPenalty(task, NOW)).toBe(0);
   });
 
-  test("cooling inside the window, not after it", () => {
-    expect(isSkipCooling(makeTask({ lastSkippedAt: at(-1) }), NOW)).toBe(true);
-    expect(isSkipCooling(makeTask({ lastSkippedAt: at(-3.9) }), NOW)).toBe(
-      true
-    );
-    expect(isSkipCooling(makeTask({ lastSkippedAt: at(-4.1) }), NOW)).toBe(
-      false
-    );
+  test("rests inside the window, not after it", () => {
+    expect(restOf(makeTask({ lastSkippedAt: at(-1) }), NOW)).toEqual({
+      reason: "skipped",
+      until: at(3),
+    });
+    expect(restOf(makeTask({ lastSkippedAt: at(-3.9) }), NOW)).not.toBeNull();
+    expect(restOf(makeTask({ lastSkippedAt: at(-4.1) }), NOW)).toBeNull();
   });
 
-  test("a future lastSkippedAt (clock skew) still counts as cooling", () => {
-    expect(isSkipCooling(makeTask({ lastSkippedAt: at(2) }), NOW)).toBe(true);
+  test("a future lastSkippedAt (clock skew) still counts as just skipped", () => {
+    expect(restOf(makeTask({ lastSkippedAt: at(2) }), NOW)?.until).toEqual(
+      at(4)
+    );
   });
 
   test("penalty grows with skip count and halves every 48h", () => {
@@ -497,5 +505,89 @@ describe("skip cooldown", () => {
       slotMinutes: null,
     });
     expect(ordered[0]?.id).toBe(urgent.id);
+  });
+});
+
+describe("rests never run past a deadline", () => {
+  test("a skip ends effort plus an hour before the task is due", () => {
+    // Due in 3 h, 30 min of work: back at +1.5 h, not +4 h.
+    const task = makeTask({ dueDate: at(3), duration: 30, lastSkippedAt: NOW });
+    expect(restOf(task, NOW)).toEqual({ reason: "skipped", until: at(1.5) });
+  });
+
+  test("a Later ends before the deadline too", () => {
+    // "Later" stamps the end of the day; the assignment is due an hour before that.
+    const task = makeTask({
+      dueDate: at(11),
+      duration: 60,
+      postponedUntil: at(12),
+    });
+    expect(restOf(task, NOW)).toEqual({ reason: "later", until: at(9) });
+  });
+
+  test("inside that window there's nothing left to put off", () => {
+    const dueSoon = makeTask({
+      dueDate: at(1),
+      duration: 30,
+      lastSkippedAt: NOW,
+    });
+    expect(restOf(dueSoon, NOW)).toBeNull();
+    const calm = makeTask({ dueDate: at(72) });
+    expect(
+      orderTasksStage1([calm, dueSoon], NOW, { slotMinutes: null })[0]?.id
+    ).toBe(dueSoon.id);
+  });
+
+  test("overdue work still rests when skipped: there's no deadline left to protect", () => {
+    const overdue = makeTask({ dueDate: at(-10), lastSkippedAt: NOW });
+    expect(restOf(overdue, NOW)?.reason).toBe("skipped");
+  });
+
+  test("a skip and a Later together rest until the later of the two", () => {
+    const task = makeTask({ lastSkippedAt: NOW, postponedUntil: at(8) });
+    expect(restOf(task, NOW)).toEqual({ reason: "later", until: at(8) });
+  });
+});
+
+describe("deferralHides", () => {
+  test("hides a deferred task with no deadline, or one due after the deferral", () => {
+    expect(deferralHides(makeTask({ postponedUntil: at(5) }), NOW)).toBe(true);
+    expect(
+      deferralHides(makeTask({ postponedUntil: at(5), dueDate: at(30) }), NOW)
+    ).toBe(true);
+  });
+
+  test("never hides a task due before the deferral ends, overdue included", () => {
+    expect(
+      deferralHides(makeTask({ postponedUntil: at(12), dueDate: at(11) }), NOW)
+    ).toBe(false);
+    expect(
+      deferralHides(makeTask({ postponedUntil: at(12), dueDate: at(-2) }), NOW)
+    ).toBe(false);
+  });
+
+  test("a deferral that's over hides nothing", () => {
+    expect(deferralHides(makeTask({ postponedUntil: at(-1) }), NOW)).toBe(
+      false
+    );
+  });
+});
+
+describe("the full list (Today)", () => {
+  test("keeps a resting task in its place instead of sinking it", () => {
+    const urgent = makeTask({
+      dueDate: at(-10),
+      impact: 0.9,
+      lastSkippedAt: NOW,
+      skipCount: 1,
+    });
+    const calm = makeTask({ dueDate: at(72), impact: 0.1 });
+    const next = orderTasksStage1([urgent, calm], NOW, { slotMinutes: null });
+    const full = orderTasksStage1([urgent, calm], NOW, {
+      slotMinutes: null,
+      restingLast: false,
+    });
+    expect(next.map((t) => t.id)).toEqual([calm.id, urgent.id]);
+    expect(full.map((t) => t.id)).toEqual([urgent.id, calm.id]);
   });
 });

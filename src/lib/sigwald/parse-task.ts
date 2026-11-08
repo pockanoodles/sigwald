@@ -29,6 +29,8 @@ export type FocusQueueTask = Task & {
     countdownHuman?: string | null;
     lastSkippedAgo?: string | null;
     effortEstimate?: string;
+    /** Skipped or put off: Focus passes over it until `until` (ISO), Today marks it. */
+    resting?: { reason: "skipped" | "later"; until: string } | null;
   };
   /** Goals this task climbs toward: Ladder's facts (src/modules/ladder/facts.ts).
    *  The base `Task.goalLinks` only carries ids. */

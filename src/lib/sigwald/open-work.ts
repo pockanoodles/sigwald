@@ -21,18 +21,30 @@ export function notClosedWhere(): Prisma.TaskWhereInput {
  * and already unlocked. `hidden` is the task sources of the modules this
  * person has off (`hiddenTaskSources`): that work is still stored, it just
  * isn't theirs to act on while the module is off.
+ *
+ * `deferredWithDue` also loads deferred tasks that have a due date, for a
+ * caller that applies `deferralHides` itself: a deferral that ends after the
+ * deadline doesn't hide the task. SQL can't read a date-only due the way
+ * `dueBy` does, so that check runs in code.
  */
 export function openWorkWhere(
   userId: string,
   now: Date,
-  hidden: readonly string[] = []
+  hidden: readonly string[] = [],
+  { deferredWithDue = false }: { deferredWithDue?: boolean } = {}
 ): Prisma.TaskWhereInput {
   return {
     userId,
     parentTaskId: null,
     AND: [
       notClosedWhere(),
-      { OR: [{ postponedUntil: null }, { postponedUntil: { lte: now } }] },
+      {
+        OR: [
+          { postponedUntil: null },
+          { postponedUntil: { lte: now } },
+          ...(deferredWithDue ? [{ dueDate: { not: null } }] : []),
+        ],
+      },
       { OR: [{ unlockAt: null }, { unlockAt: { lte: now } }] },
       visibleSourceWhere(hidden),
     ],

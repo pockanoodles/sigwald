@@ -115,6 +115,27 @@ describe("isDeferredTask", () => {
     expect(isDeferredTask(makeTask({ postponedUntil: null }))).toBe(false);
     expect(isDeferredTask(makeTask({ postponedUntil: undefined }))).toBe(false);
   });
+
+  it("never hides a task due before its deferral ends", () => {
+    // Later on Canvas work due at 11:59 PM tonight, put off to the end of the day.
+    const now = new Date("2026-11-08T18:00:00Z");
+    const task = makeTask({
+      source: "CANVAS",
+      dueDate: new Date("2026-11-09T04:59:00Z"),
+      postponedUntil: new Date("2026-11-09T04:59:59Z"),
+    });
+    expect(isDeferredTask(task, now, "America/New_York")).toBe(false);
+  });
+
+  it("reads a date-only due as the end of its day", () => {
+    const now = new Date("2026-11-08T18:00:00Z");
+    // Picked as Nov 9 with no time (UTC midnight), deferred to the end of Nov 8.
+    const dueTomorrow = makeTask({
+      dueDate: new Date("2026-11-09T00:00:00Z"),
+      postponedUntil: new Date("2026-11-09T04:59:59Z"),
+    });
+    expect(isDeferredTask(dueTomorrow, now, "America/New_York")).toBe(true);
+  });
 });
 
 describe("taskMatchesListFilters - deferred", () => {

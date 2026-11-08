@@ -1,7 +1,10 @@
 import { create } from "zustand";
 
 import { isDueToday } from "@/lib/sigwald/due";
-import { parseTaskFromApi, type FocusQueueTask } from "@/lib/sigwald/parse-task";
+import {
+  type FocusQueueTask,
+  parseTaskFromApi,
+} from "@/lib/sigwald/parse-task";
 
 /**
  * How long a fetched queue is considered fresh. The top bar asks for the queue
@@ -13,7 +16,10 @@ import { parseTaskFromApi, type FocusQueueTask } from "@/lib/sigwald/parse-task"
 const STALE_MS = 60_000;
 
 interface SigwaldStatusStore {
+  /** Every open task in its place (the queue's `inventory`): Today and the counts. */
   tasks: FocusQueueTask[];
+  /** What to do next (the queue's `ranked`): resting work last, only what fits the free slot. */
+  next: FocusQueueTask[];
   slotNarrative: string | null;
   status: "idle" | "loading" | "ready" | "error";
   fetchedAt: number | null;
@@ -30,6 +36,7 @@ interface SigwaldStatusStore {
  */
 export const useSigwaldStatusStore = create<SigwaldStatusStore>((set, get) => ({
   tasks: [],
+  next: [],
   slotNarrative: null,
   status: "idle",
   fetchedAt: null,
@@ -52,8 +59,11 @@ export const useSigwaldStatusStore = create<SigwaldStatusStore>((set, get) => ({
         return;
       }
       const data = await res.json();
+      const next = (data.ranked ?? []).map(parseTaskFromApi);
       set({
-        tasks: (data.ranked ?? []).map(parseTaskFromApi),
+        // A server from before `inventory` existed sends only `ranked`.
+        tasks: data.inventory ? data.inventory.map(parseTaskFromApi) : next,
+        next,
         slotNarrative: data.briefing?.slotNarrative ?? null,
         status: "ready",
         fetchedAt: Date.now(),
@@ -64,7 +74,10 @@ export const useSigwaldStatusStore = create<SigwaldStatusStore>((set, get) => ({
   },
 
   removeTask: (id) =>
-    set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) })),
+    set((s) => ({
+      tasks: s.tasks.filter((t) => t.id !== id),
+      next: s.next.filter((t) => t.id !== id),
+    })),
 }));
 
 export function countDueToday(tasks: FocusQueueTask[]): number {
