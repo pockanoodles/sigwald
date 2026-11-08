@@ -347,7 +347,12 @@ export function TaskSheet({
                       "sticky top-0 z-20 border-b border-r border-border p-0 text-left",
                       // The active cell's column header lights up, so a
                       // selection deep in the sheet still says what it is.
-                      i === col ? "bg-rust/20" : "bg-muted"
+                      // Mixed into the header's own colour, not laid over
+                      // it: a see-through tint let rows scrolling under the
+                      // sticky header show through.
+                      i === col
+                        ? "bg-[color-mix(in_srgb,var(--er-accent)_20%,var(--er-surface))]"
+                        : "bg-muted"
                     )}
                   >
                     <button
