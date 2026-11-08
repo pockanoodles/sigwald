@@ -43,6 +43,9 @@ export async function GET(request: NextRequest) {
           danger: m?.danger ?? false,
           urgencyTier: m?.urgencyTier ?? "NONE",
           baseScore: m?.baseScore ?? 0,
+          // The moment it's due by (a date picked without a time runs to the
+          // end of that day), for callers that act on deadlines (ops' pings).
+          dueAt: t.dueDate ? new Date(t.dueDate).toISOString() : null,
           // Skipped or put off: Focus passes over it until then, Today marks it.
           resting: rest
             ? { reason: rest.reason, until: rest.until.toISOString() }
