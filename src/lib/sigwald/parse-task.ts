@@ -29,6 +29,8 @@ export type FocusQueueTask = Task & {
     countdownHuman?: string | null;
     lastSkippedAgo?: string | null;
     effortEstimate?: string;
+    /** When it's due by (ISO): end of day for a date without a time. */
+    dueAt?: string | null;
     /** Skipped or put off: Focus passes over it until `until` (ISO), Today marks it. */
     resting?: { reason: "skipped" | "later"; until: string } | null;
   };
