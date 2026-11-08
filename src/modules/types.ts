@@ -35,6 +35,8 @@ export interface ModuleManifest {
   summary: string;
   /** Whether it's on for someone who has never turned it on or off. */
   defaultOn: boolean;
+  /** Still taking shape: it works, but what it does and keeps may change. */
+  beta?: boolean;
   /** Its one entry in the rail. Other views of it live in the top bar. */
   page?: { href: string; keywords: string[] };
   /** The `Task.source` values it owns. When it's off, those tasks leave every list. */
