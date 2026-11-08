@@ -94,6 +94,44 @@ function getStandardRRule(task?: Task): RRule {
   return RRule.fromString(task.recurrenceRule);
 }
 
+/** The form's date fields as they were when the dialog opened. */
+interface DateFields {
+  dueDate: string;
+  startDate: string;
+  postponedUntil: string;
+  scheduledStart: string;
+  scheduledEnd: string;
+}
+
+const NO_DATES: DateFields = {
+  dueDate: "",
+  startDate: "",
+  postponedUntil: "",
+  scheduledStart: "",
+  scheduledEnd: "",
+};
+
+/**
+ * A day picked in the due-date field, as the moment to store. A deadline that
+ * carried a time (Canvas: 11:59 PM, 7:00 AM) keeps that time on its new day;
+ * one without stays a bare date (UTC midnight, read as the end of that day).
+ */
+function dueOnDay(day: string, before: Date | string | null | undefined): Date {
+  if (before) {
+    const was = newDate(before);
+    const bare =
+      was.getUTCHours() === 0 &&
+      was.getUTCMinutes() === 0 &&
+      was.getUTCSeconds() === 0 &&
+      was.getUTCMilliseconds() === 0;
+    if (!bare) {
+      const [y, m, d] = day.split("-").map(Number);
+      return new Date(y, m - 1, d, was.getHours(), was.getMinutes(), was.getSeconds());
+    }
+  }
+  return newDate(day);
+}
+
 export function TaskModal({
   isOpen,
   onClose,
@@ -147,6 +185,11 @@ export function TaskModal({
   const [showAdvanced, setShowAdvanced] = useState(false);
   const ladderOn = useModuleOn("ladder");
   const titleInputRef = useRef<HTMLInputElement>(null);
+  // What the date fields held when the dialog opened. A field left as it was
+  // isn't sent: the inputs only hold a day (or a minute), so echoing them
+  // back turned a Canvas deadline at 7:00 AM into midnight UTC, 7 PM the
+  // evening before, on every save of any other field.
+  const openedDates = useRef<DateFields>(NO_DATES);
 
   const resetForm = useCallback(() => {
     setTitle("");
@@ -216,6 +259,17 @@ export function TaskModal({
         setStartDate("");
       }
       setPostponedUntil(toDateTimeInput(task.postponedUntil));
+      openedDates.current = {
+        dueDate: task.dueDate
+          ? format(taskDay(newDate(task.dueDate)), "yyyy-MM-dd")
+          : "",
+        startDate: task.startDate
+          ? format(taskDay(newDate(task.startDate)), "yyyy-MM-dd")
+          : "",
+        postponedUntil: toDateTimeInput(task.postponedUntil),
+        scheduledStart: toDateTimeInput(task.scheduledStart),
+        scheduledEnd: toDateTimeInput(task.scheduledEnd),
+      };
       setDuration(task.duration?.toString() || "");
       setEnergyLevel(task.energyLevel || "");
       setPreferredTime(task.preferredTime || "");
@@ -242,6 +296,7 @@ export function TaskModal({
         )
       );
     } else if (!task && isOpen) {
+      openedDates.current = NO_DATES;
       resetForm();
     }
   }, [task, isOpen, initialProjectId, resetForm]);
@@ -269,13 +324,30 @@ export function TaskModal({
         scheduledEnd !== toDateTimeInput(task?.scheduledEnd);
       const hasManualTime = Boolean(scheduledStart && scheduledEnd);
 
+      // Only the date fields that were changed: undefined leaves the stored
+      // moment alone, null clears it.
+      const opened = openedDates.current;
+      const changed = <K extends keyof DateFields>(field: K, value: string) =>
+        !task || value !== opened[field];
       await onSave({
         title: title.trim(),
         description: ModulePane ? undefined : description.trim() || undefined,
         status,
-        dueDate: dueDate ? newDate(dueDate) : null,
-        startDate: startDate ? newDate(startDate) : null,
-        postponedUntil: postponedUntil ? newDate(postponedUntil) : null,
+        dueDate: !changed("dueDate", dueDate)
+          ? undefined
+          : dueDate
+            ? dueOnDay(dueDate, task?.dueDate)
+            : null,
+        startDate: !changed("startDate", startDate)
+          ? undefined
+          : startDate
+            ? newDate(startDate)
+            : null,
+        postponedUntil: !changed("postponedUntil", postponedUntil)
+          ? undefined
+          : postponedUntil
+            ? newDate(postponedUntil)
+            : null,
         duration: duration ? parseInt(duration, 10) : undefined,
         energyLevel: energyLevel || undefined,
         preferredTime: preferredTime || undefined,
@@ -286,8 +358,16 @@ export function TaskModal({
         isAutoScheduled,
         scheduleLocked:
           scheduleChanged && hasManualTime ? true : scheduleLocked,
-        scheduledStart: scheduledStart ? newDate(scheduledStart) : null,
-        scheduledEnd: scheduledEnd ? newDate(scheduledEnd) : null,
+        scheduledStart: !changed("scheduledStart", scheduledStart)
+          ? undefined
+          : scheduledStart
+            ? newDate(scheduledStart)
+            : null,
+        scheduledEnd: !changed("scheduledEnd", scheduledEnd)
+          ? undefined
+          : scheduledEnd
+            ? newDate(scheduledEnd)
+            : null,
         priority,
         goalId,
       });
