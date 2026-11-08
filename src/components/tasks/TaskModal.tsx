@@ -27,6 +27,8 @@ import { format, newDate, taskDay } from "@/lib/date-utils";
 import { RecurrenceConverterFactory } from "@/lib/task-sync/recurrence/recurrence-converter-factory";
 import { cn } from "@/lib/utils";
 
+import { useTaskModule } from "@/modules/client";
+
 import { useModuleOn } from "@/store/modules";
 import { useProjectStore } from "@/store/project";
 
@@ -104,6 +106,12 @@ export function TaskModal({
   onDelete,
 }: TaskModalProps) {
   const { projects } = useProjectStore();
+  // A task a module owns (a Canvas assignment, a workout, a timesheet) reads
+  // through that module's pane, as in the sheet: its description is the
+  // module's (for Canvas, raw HTML), so it's neither shown as text nor saved
+  // back from here.
+  const owner = useTaskModule(task?.source);
+  const ModulePane = task ? owner?.TaskPane : undefined;
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<TaskStatus>(TaskStatus.TODO);
@@ -263,7 +271,7 @@ export function TaskModal({
 
       await onSave({
         title: title.trim(),
-        description: description.trim() || undefined,
+        description: ModulePane ? undefined : description.trim() || undefined,
         status,
         dueDate: dueDate ? newDate(dueDate) : null,
         startDate: startDate ? newDate(startDate) : null,
@@ -325,15 +333,26 @@ export function TaskModal({
             />
           </div>
 
-          <div className={cn(!showAdvanced && "hidden sm:block")}>
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-            />
-          </div>
+          {ModulePane && task && owner ? (
+            <section aria-label={`From ${owner.manifest.name}`}>
+              <Label asChild>
+                <span>From {owner.manifest.name}</span>
+              </Label>
+              <div className="mt-1.5 max-h-[45vh] overflow-y-auto border border-border">
+                <ModulePane taskId={task.id} />
+              </div>
+            </section>
+          ) : (
+            <div className={cn(!showAdvanced && "hidden sm:block")}>
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+              />
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div>
