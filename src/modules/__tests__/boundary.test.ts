@@ -44,6 +44,7 @@ const OWNED: Record<string, string[]> = {
     "src/lib/sigwald/goal-cycles.ts",
     "src/lib/sigwald/goal-input.ts",
     "src/lib/sigwald/goal-links.ts",
+    "src/lib/sigwald/goal-plans.ts",
     "src/lib/sigwald/goal-rules.ts",
     "src/lib/sigwald/hex.ts",
     "src/lib/sigwald/ladder.ts",
