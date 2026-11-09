@@ -39,6 +39,8 @@ export interface LadderGoalRow extends XpGoalRow {
   targetDate: string | null;
   externalId: string | null;
   importanceScore: number | null;
+  /** What it claims (Goal.taskSources): CANVAS, `repo:<owner>/<name>`, … */
+  taskSources: string[];
   cycleId: string;
   whyItMatters: string | null;
   definitionOfDone: string | null;
@@ -73,6 +75,19 @@ export interface LadderInput {
   /** Tasks open and actionable now, and their goal links. */
   open: { id: string; goalIds: string[] }[];
   cycles: LadderCycleRow[];
+  /** What the goal form calls each claim on offer ("All Canvas work", "SCHM2301"). */
+  claimLabels?: Record<string, string>;
+}
+
+/** A claim's name: the one on offer, else read off the key itself. */
+export function claimLabel(key: string, labels: Record<string, string> = {}): string {
+  if (labels[key]) return labels[key];
+  if (key.startsWith("repo:")) return key.slice("repo:".length);
+  if (key.startsWith("owner:")) return `${key.slice("owner:".length)}/*`;
+  if (key.startsWith("course:")) return "A course";
+  if (key.startsWith("project:")) return "A project";
+  if (key.startsWith("routine:")) return "A routine";
+  return key;
 }
 
 const DAY_MS = 86_400_000;
@@ -194,6 +209,7 @@ export function buildLadder(input: LadderInput): LadderPayload {
       stats: rowStats.get(goal.id) ?? [],
       develops: goal.develops.filter(isStatKey),
       importance: goal.importanceScore,
+      claims: goal.taskSources.map((key) => ({ key, label: claimLabel(key, input.claimLabels) })),
       managed: goal.externalId !== null,
       isBoss: goal.isBoss,
       whyItMatters: goal.whyItMatters,

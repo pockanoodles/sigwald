@@ -10,6 +10,7 @@ const goal = (row: Partial<LadderGoalRow> & Pick<LadderGoalRow, "id" | "title">)
   targetDate: null,
   externalId: null,
   importanceScore: 50,
+  taskSources: [],
   cycleId: "hex5",
   whyItMatters: null,
   definitionOfDone: null,

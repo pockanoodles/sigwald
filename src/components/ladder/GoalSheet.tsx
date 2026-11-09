@@ -18,14 +18,16 @@ import { cn } from "@/lib/utils";
 
 import { useLadderStore } from "@/store/ladder";
 
-import type { LadderPayload } from "@/types/ladder";
+import type { LadderGoal, LadderPayload } from "@/types/ladder";
 
-import { countdown, daysBetween, fmtXp, shortDay } from "./format";
+import { countdown, fmtXp, shortDay } from "./format";
 
 /**
- * Where the XP came from: every goal on show, what it develops, what it
- * earned this hex and what's still open on it. A selected stat dims the goals
- * that don't feed it, which is how a flat stat explains itself.
+ * Where the XP came from: every goal on show, what feeds it, what it
+ * develops, what it earned this hex and what's still open on it. A selected
+ * stat dims the goals that don't feed it, which is how a flat stat explains
+ * itself, and "Fed by" is how a flat goal does: XP only comes from finished
+ * work a goal claims.
  */
 export function GoalSheet({ data }: { data: LadderPayload }) {
   const stat = useLadderStore((s) => s.stat);
@@ -97,25 +99,39 @@ export function GoalSheet({ data }: { data: LadderPayload }) {
               : "No goals yet. A goal names the stats its work develops, and every task you link to it from Tasks earns XP for them."}
           </p>
         ) : (
-          <table className="w-full min-w-[540px] table-fixed select-none border-separate border-spacing-0 text-[13px]">
+          <table className="w-full min-w-[600px] table-fixed select-none border-separate border-spacing-0 text-[13px]">
             <colgroup>
               <col style={{ width: 36 }} />
               <col />
-              <col style={{ width: 96 }} />
-              <col style={{ width: 52 }} />
+              <col style={{ width: 104 }} />
+              <col style={{ width: 88 }} />
+              <col style={{ width: 40 }} />
               <col style={{ width: 48 }} />
-              <col style={{ width: 48 }} />
-              <col style={{ width: 132 }} />
+              <col style={{ width: 44 }} />
+              <col style={{ width: 44 }} />
+              <col style={{ width: 64 }} />
             </colgroup>
             <thead>
               <tr>
                 <th scope="col" className={cn(ROW, HEAD, "left-0 z-30 text-right")}>#</th>
                 <th scope="col" className={cn(ROW, HEAD)}>Goal</th>
+                <th scope="col" className={cn(ROW, HEAD)} title="The work it claims: only finished work a goal claims earns it XP">
+                  Fed by
+                </th>
                 <th scope="col" className={cn(ROW, HEAD)}>Develops</th>
+                <th
+                  scope="col"
+                  className={cn(ROW, HEAD, "text-right")}
+                  title="Importance, 0 to 100: how far it lifts its open tasks in Focus. It doesn't change XP."
+                >
+                  Imp
+                </th>
                 <th scope="col" className={cn(ROW, HEAD, "text-right")} title="XP it earned in this hex">XP</th>
                 <th scope="col" className={cn(ROW, HEAD, "text-right")} title="Tasks finished in this hex">Done</th>
                 <th scope="col" className={cn(ROW, HEAD, "text-right")} title="Tasks open now">Open</th>
-                <th scope="col" className={cn(ROW, HEAD, "border-r-0")}>Next boss</th>
+                <th scope="col" className={cn(ROW, HEAD, "border-r-0")} title="Its next boss still standing">
+                  Boss
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -150,6 +166,7 @@ export function GoalSheet({ data }: { data: LadderPayload }) {
                         </span>
                       ) : null}
                     </td>
+                    <FedBy goal={goal} cell={cell} />
                     <td className={cn(cell, "font-mono text-[11px] uppercase")}>
                       {goal.stats.length ? (
                         goal.stats.map((key, k) => (
@@ -164,6 +181,9 @@ export function GoalSheet({ data }: { data: LadderPayload }) {
                         </span>
                       )}
                     </td>
+                    <td className={cn(cell, "text-right tabular-nums text-muted-foreground")}>
+                      {goal.importance ?? "—"}
+                    </td>
                     <td className={cn(cell, "text-right tabular-nums", goal.xp > 0 ? "text-foreground" : "text-muted-foreground")}>
                       {goal.xp > 0 ? `+${fmtXp(goal.xp)}` : "—"}
                     </td>
@@ -177,16 +197,11 @@ export function GoalSheet({ data }: { data: LadderPayload }) {
                           : undefined
                       }
                     >
+                      {/* Just the date: the band's Next boss counts down to the nearest one, and the tooltip to this one. */}
                       {goal.nextBoss ? (
-                        <>
-                          <span className="font-mono text-[11px] tabular-nums text-foreground">
-                            {shortDay(goal.nextBoss.day, data.today)}
-                          </span>
-                          {/* A countdown helps for the next two months; past that the date says more. */}
-                          {daysBetween(data.today, goal.nextBoss.day) <= 60 ? (
-                            <span className="text-[12px]"> {countdown(data.today, goal.nextBoss.day)}</span>
-                          ) : null}
-                        </>
+                        <span className="font-mono text-[11px] tabular-nums text-foreground">
+                          {shortDay(goal.nextBoss.day, data.today)}
+                        </span>
                       ) : (
                         "—"
                       )}
@@ -199,5 +214,41 @@ export function GoalSheet({ data }: { data: LadderPayload }) {
         )}
       </div>
     </section>
+  );
+}
+
+/**
+ * What feeds a goal. Claims name the work it takes in whole (a source, a
+ * repo, a course). Without one, a goal earns only from tasks linked to it
+ * one by one, and a goal with neither can't earn at all: that's the case to
+ * flag, since it looks the same as a goal nobody worked on.
+ */
+function FedBy({ goal, cell }: { goal: LadderGoal; cell: string }) {
+  if (goal.claims.length > 0) {
+    const names = goal.claims.map((c) => c.label).join(", ");
+    return (
+      <td className={cn(cell, "text-muted-foreground")} title={`Every finished task from ${names} counts toward it`}>
+        {names}
+      </td>
+    );
+  }
+  if (goal.done > 0 || goal.open > 0) {
+    return (
+      <td className={cn(cell, "text-muted-foreground")} title="It claims no source; tasks are linked to it one by one">
+        Linked tasks
+      </td>
+    );
+  }
+  return (
+    <td
+      className={cn(cell, "text-warning")}
+      title={
+        goal.managed
+          ? "Nothing feeds it, so it can't earn XP. Name the work it claims in your vault (sources: in its overview), or link tasks to it."
+          : "Nothing feeds it, so it can't earn XP. Edit it to claim a source, repo or course, or link tasks to it."
+      }
+    >
+      Nothing
+    </td>
   );
 }
