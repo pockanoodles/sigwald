@@ -289,14 +289,26 @@ export function effectiveLift(task: TaskForRanking): number {
   return Math.min(1, Math.max(0, l));
 }
 
+/** What "high" says a task matters at least, on the 0–1 impact scale: about a sizable graded assignment. */
+export const STATED_HIGH_FLOOR = 0.7;
+/** What "low" says a task matters at most, whatever its source or goal says. */
+export const STATED_LOW_CEILING = 0.15;
+
 /**
  * Raw (pre-pool-normalization) impact for a task: the stronger of its own
  * impact and its lift. A task surfaces on its best reason to matter (a big
  * grade OR an important personal goal); taking the max avoids
  * double-counting a task that is both.
+ *
+ * The person's own word comes last and wins: "high" lifts a task to at least
+ * a sizable assignment's weight, "low" caps it. "medium" is the default the
+ * modules give their tasks, so it says nothing and changes nothing.
  */
-function rawImpact(task: TaskForRanking, now: Date): number {
-  return Math.max(effectiveImpact(task, now), effectiveLift(task));
+export function rawImpact(task: TaskForRanking, now: Date): number {
+  const derived = Math.max(effectiveImpact(task, now), effectiveLift(task));
+  if (task.priority === "high") return Math.max(derived, STATED_HIGH_FLOOR);
+  if (task.priority === "low") return Math.min(derived, STATED_LOW_CEILING);
+  return derived;
 }
 
 /**
