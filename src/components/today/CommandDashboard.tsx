@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
 
 import { FirstRun } from "@/components/today/FirstRun";
+import { IntakeReview } from "@/components/today/IntakeReview";
 import { Button } from "@/components/ui/button";
 import { SwipeableRow } from "@/components/ui/swipeable-row";
 
@@ -172,6 +173,8 @@ export function CommandDashboard() {
       <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[1fr_23rem] xl:grid-cols-[1fr_27rem]">
         {/* LEFT — the climb: ranked queue */}
         <section className="min-h-0 overflow-y-auto lg:border-r lg:border-border">
+          {/* Work read out of announcements and messages that waits for a yes, above the queue it would join. */}
+          <IntakeReview onAdded={() => load({ force: true })} />
           {(status === "idle" || status === "loading") && (
             <p className="p-6 text-sm text-muted-foreground">Loading today…</p>
           )}

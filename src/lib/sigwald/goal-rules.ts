@@ -8,8 +8,10 @@ import { moduleClaimKeys, moduleProofItems } from "@/modules/hooks";
  * in Sigwald; Sigwald only applies them.
  *
  *  - A goal in play claims every task matching one of its claims: a task
- *    source (CANVAS), `project:<id>`, or a key a module adds to its tasks
- *    (Courses: `course:<Canvas course id>`). A vault goal also claims its own
+ *    source (CANVAS), `project:<id>`, a key a module adds to its tasks
+ *    (Courses: `course:<Canvas course id>`), or one its creator declared in
+ *    Task.claims (intake: a task read out of a Canvas announcement carries
+ *    CANVAS, so School claims it). A vault goal also claims its own
  *    "venture:<slug>", the tasks pump 2 decomposed from it.
  *  - A boss with proof is settled by it (lib/sigwald/boss-proof.ts). A Canvas
  *    gradebook item or a task fells the boss once the work is handed in, and
@@ -204,6 +206,7 @@ export async function applyGoalRules(
       source: true,
       projectId: true,
       status: true,
+      claims: true,
       goalLinks: { select: { id: true, goalId: true } },
     },
   });
@@ -216,7 +219,8 @@ export async function applyGoalRules(
   const { create, stale } = planLinks(
     goals,
     bossesByTask,
-    tasks.map((t) => ({ ...t, claims: claims.get(t.id) ?? [] }))
+    // A task's claims: what its creator declared (intake's CANVAS, course:<id>) and what its modules add.
+    tasks.map((t) => ({ ...t, claims: [...t.claims, ...(claims.get(t.id) ?? [])] }))
   );
 
   if (create.length) {
