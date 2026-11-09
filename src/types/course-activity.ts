@@ -42,6 +42,8 @@ export interface ActivityFeed {
 
 export interface NewsCourse {
   id: string;
+  /** Canvas's id, which goals claim a course by (`course:<canvasId>`). */
+  canvasId: string;
   code: string | null;
   name: string;
 }
