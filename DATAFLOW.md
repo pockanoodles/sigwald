@@ -22,7 +22,7 @@ Last verified against the code on **2026-11-07**. For the privacy policy that si
 | **Resend** (`api.resend.com`, self-hosted servers only) | Your email address and a one-time reset link | It sends one email | Password reset |
 | **GitHub Releases** (desktop downloads from GitHub only) | A request for the newest release, which carries the app's version, your platform and your IP address | No | Update check |
 
-The Stats, People, Training, Nutrition and Work modules send nothing out of Sigwald, so your goals, the people you keep in touch with, your workouts, what you eat, your shifts and the contacts you keep for each job stay in the database. Work takes a schedule or a contact roster that a script sends to it, and it never calls out to fetch one.
+The Stats, People, Training, Nutrition, Work and Code modules send nothing out of Sigwald, so your goals, the people you keep in touch with, your workouts, what you eat, your shifts, the contacts you keep for each job and the days you committed code stay in the database. Work takes a schedule or a contact roster that a script sends to it, and Code takes, for each repo and day, the commit count and the commits' one-line messages that a script sends to it (never code or diffs). Neither calls out to fetch anything.
 
 Sigwald has no analytics, no crash reporting, no telemetry and no AI service. This is a fact about the code, because Sigwald ships no analytics library and no language-model client, so nothing you type is sent to a model. The "assistant" behavior (the daily briefing, the focus queue and task ranking) is ordinary arithmetic that runs on your own machine.
 
