@@ -4,16 +4,23 @@ import { authenticateRequest } from "@/lib/auth/api-auth";
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
 import { itemProof, selfProof, taskProof, type BossProof } from "@/lib/sigwald/boss-proof";
 import { ensureCurrentHex, hexOfDay } from "@/lib/sigwald/hex";
+import { SOURCE_CLAIMS } from "@/lib/sigwald/goal-input";
 import { buildLadder } from "@/lib/sigwald/ladder";
 import { openWorkWhere } from "@/lib/sigwald/open-work";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
 import { moduleOffResponse } from "@/modules/api";
-import { moduleProofItems, moduleTaskFacts } from "@/modules/hooks";
+import { moduleClaimOptions, moduleProofItems, moduleTaskFacts } from "@/modules/hooks";
 import { moduleView } from "@/modules/state";
 
 const LOG_SOURCE = "SigwaldLadderAPI";
+
+/** "All Canvas work" → "Canvas", "All workouts (Training)" → "Workouts (Training)". */
+const sourceName = (label: string) => {
+  const bare = label.replace(/^All /, "").replace(/ work$/, "");
+  return bare.charAt(0).toUpperCase() + bare.slice(1);
+};
 
 /** A date-only value (a boss's day, stored at noon UTC) keeps its own date. */
 const dateOnly = (d: Date) => d.toISOString().slice(0, 10);
@@ -70,6 +77,7 @@ export async function GET(request: NextRequest) {
           updatedAt: true,
           externalId: true,
           importanceScore: true,
+          taskSources: true,
           cycleId: true,
           whyItMatters: true,
           definitionOfDone: true,
@@ -117,11 +125,18 @@ export async function GET(request: NextRequest) {
     const proofTaskIds = bosses.flatMap((goal) =>
       !goal.canvasAssignmentId && goal.proofTaskId ? [goal.proofTaskId] : []
     );
-    const [items, proofTasks] = await Promise.all([
+    const [items, proofTasks, offered] = await Promise.all([
       moduleProofItems(prisma, userId, canvasIds),
       proofTaskIds.length
         ? prisma.task.findMany({ where: { id: { in: proofTaskIds }, userId }, select: { id: true, status: true } })
         : [],
+      // What each goal's claims are called, for its "Fed by".
+      moduleClaimOptions(prisma, userId),
+    ]);
+    // A whole source reads as its name ("Canvas"); the form's "All Canvas work" is a chip, not a column.
+    const claimLabels = Object.fromEntries([
+      ...SOURCE_CLAIMS.map((o) => [o.key, sourceName(o.label)] as const),
+      ...offered.map((o) => [o.key, o.label] as const),
     ]);
     const itemOf = new Map(items.map((item) => [item.ref, item]));
     const taskOf = new Map(proofTasks.map((task) => [task.id, task]));
@@ -149,6 +164,7 @@ export async function GET(request: NextRequest) {
           targetDate: goal.targetDate?.toISOString() ?? null,
           externalId: goal.externalId,
           importanceScore: goal.importanceScore,
+          taskSources: goal.taskSources,
           cycleId: goal.cycleId,
           whyItMatters: goal.whyItMatters,
           definitionOfDone: goal.definitionOfDone,
@@ -165,6 +181,7 @@ export async function GET(request: NextRequest) {
           id: task.id,
           goalIds: task.goalLinks.map((link) => link.goalId),
         })),
+        claimLabels,
         cycles: cycles.map((cycle) => ({
           id: cycle.id,
           theme: cycle.theme,

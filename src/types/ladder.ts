@@ -60,6 +60,12 @@ export interface LadderGoal {
   /** Its own stats, for editing; empty when it inherits. */
   develops: StatKey[];
   importance: number | null;
+  /**
+   * What feeds it: the sources, repos or courses whose work it claims. A goal
+   * that claims nothing earns only from tasks linked to it by hand (or, for a
+   * vault goal, the tasks ops made from its plan).
+   */
+  claims: { key: string; label: string }[];
   /** Projected from the vault, so it's edited there. */
   managed: boolean;
   isBoss: boolean;
