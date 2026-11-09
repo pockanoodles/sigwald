@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
 
     const items: NewsItem[] = [];
     for (const c of courses) {
-      const course = { id: c.id, code: c.code, name: c.name };
+      const course = { id: c.id, canvasId: c.canvasId, code: c.code, name: c.name };
       const clean = await cleanOptionsFor(auth.userId, c.canvasId);
       for (const a of c.announcements) {
         items.push({
