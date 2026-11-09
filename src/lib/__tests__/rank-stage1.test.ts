@@ -12,6 +12,7 @@ import {
   isFillerCandidate,
   orderTasksStage1,
   pickTopTaskStage1,
+  rawImpact,
   restOf,
   skipPenalty,
   visibilityBoost,
@@ -589,5 +590,32 @@ describe("the full list (Today)", () => {
     });
     expect(next.map((t) => t.id)).toEqual([calm.id, urgent.id]);
     expect(full.map((t) => t.id)).toEqual([urgent.id, calm.id]);
+  });
+});
+
+describe("rawImpact — the person's stated priority", () => {
+  it("lifts a high task with nothing else behind it to a sizable assignment's weight", () => {
+    expect(rawImpact(makeTask({ priority: "high" }), NOW)).toBe(0.7);
+    // A stronger reason still wins.
+    expect(rawImpact(makeTask({ priority: "high", impact: 0.9 }), NOW)).toBe(0.9);
+  });
+
+  it("caps a low task, whatever its source or goal says", () => {
+    expect(rawImpact(makeTask({ priority: "low", impact: 0.9 }), NOW)).toBe(0.15);
+    expect(rawImpact(makeTask({ priority: "low", lift: 0.95 }), NOW)).toBe(0.15);
+  });
+
+  it("leaves medium alone: it's what the modules give every task", () => {
+    expect(rawImpact(makeTask({ priority: "medium", impact: 0.3 }), NOW)).toBe(0.3);
+    expect(rawImpact(makeTask({ priority: "medium" }), NOW)).toBe(0);
+  });
+
+  it("puts a hand-made high task ahead of an equally due one nothing vouches for", () => {
+    const high = makeTask({ priority: "high", dueDate: at(30) });
+    const plain = makeTask({ dueDate: at(30) });
+    const graded = makeTask({ impact: 0.5, dueDate: at(30) });
+    const order = orderTasksStage1([plain, graded, high], NOW, { slotMinutes: null }).map((t) => t.id);
+    expect(order.indexOf(high.id)).toBeLessThan(order.indexOf(graded.id));
+    expect(order.indexOf(graded.id)).toBeLessThan(order.indexOf(plain.id));
   });
 });
