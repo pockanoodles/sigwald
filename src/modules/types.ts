@@ -16,7 +16,8 @@ export type ModuleId =
   | "people"
   | "training"
   | "nutrition"
-  | "work";
+  | "work"
+  | "code";
 
 /** One thing a module sends out of Sigwald, written for someone who isn't an engineer. */
 export interface ModuleEgress {

@@ -23,9 +23,10 @@ export function useNavigationCommands(): Command[] {
 
   // A module that's on gets its "Go to" entry; one that's off has none.
   const moduleCommands: Command[] = modules.flatMap((m) => {
-    if (!m.page) return [];
+    const command = CLIENT_MODULES[m.id].command;
+    if (!m.page || !command) return [];
     const href = m.page.href;
-    const { icon, shortcut } = CLIENT_MODULES[m.id].command;
+    const { icon, shortcut } = command;
     return [
       {
         id: `navigation.${m.id}`,

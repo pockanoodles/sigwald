@@ -69,8 +69,8 @@ import { WorkStatus } from "@/modules/work/components/WorkStatus";
  * draws while its module is on.
  */
 export interface ClientContributions {
-  /** Its "Go to" entry in ⌘K. */
-  command: { icon: IconType; shortcut?: string };
+  /** Its "Go to" entry in ⌘K, for a module with a page. */
+  command?: { icon: IconType; shortcut?: string };
   /** Top bar, beside the page name on its page: view switchers. */
   Views?: ComponentType;
   /** Top bar, right, on its page: things that change its data. */
@@ -148,6 +148,8 @@ export const CLIENT_MODULES: Record<ModuleId, ClientContributions> = {
     TaskBody: TimesheetTaskBody,
     TaskPane: TimesheetTaskPane,
   },
+  // No page: Code's days show in Tasks and on Stats as finished work.
+  code: {},
 };
 
 /**

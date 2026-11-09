@@ -19,6 +19,7 @@ describe("resolveModuleStates", () => {
       "people",
       "training",
       "nutrition",
+      "code",
     ]);
     const firstBeta = MODULES.findIndex((m) => m.beta);
     expect(MODULES.slice(firstBeta).every((m) => m.beta)).toBe(true);
@@ -43,6 +44,7 @@ describe("resolveModuleStates", () => {
       { id: "training", on: false, position: 4 },
       { id: "courses", on: true, position: 5 },
       { id: "nutrition", on: false, position: 5 },
+      { id: "code", on: false, position: 6 },
     ]);
   });
 
@@ -65,6 +67,7 @@ describe("resolveModuleStates", () => {
       "people",
       "training",
       "nutrition",
+      "code",
     ]);
   });
 });
@@ -76,6 +79,7 @@ describe("hiddenSourcesOf", () => {
       "CANVAS",
       "PEOPLE",
       "TRAINING",
+      "CODE",
     ]);
     expect(
       hiddenSourcesOf(
@@ -84,6 +88,7 @@ describe("hiddenSourcesOf", () => {
           { moduleId: "people", enabled: true, position: 1 },
           { moduleId: "training", enabled: true, position: 2 },
           { moduleId: "work", enabled: true, position: 3 },
+          { moduleId: "code", enabled: true, position: 4 },
         ])
       )
     ).toEqual([]);

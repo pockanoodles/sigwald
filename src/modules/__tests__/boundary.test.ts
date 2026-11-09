@@ -80,6 +80,7 @@ const OWNED: Record<string, string[]> = {
     "src/app/api/sigwald/work/",
     "src/app/api/sigwald/shifts/",
   ],
+  code: ["src/modules/code/", "src/app/api/sigwald/code/"],
 };
 
 const REGISTRIES = new Set([

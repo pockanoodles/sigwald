@@ -7,6 +7,7 @@ import type { Db, DbTransaction } from "@/lib/prisma";
 import type { SearchGroup, SearchQuery } from "@/lib/search/types";
 import type { RankSignals } from "@/lib/sigwald/rank-stage1";
 
+import { codeClaimKeys, codeClaimOptions } from "@/modules/code/facts";
 import {
   courseClaimKeys,
   courseClaimOptions,
@@ -132,5 +133,10 @@ export const SERVER_MODULES: Record<ModuleId, ServerContributions> = {
       { id: "work.calendar", run: restoreShiftEvents },
     ],
     search: searchWork,
+  },
+  // Code's days arrive through its import API; it adds only what goals claim by.
+  code: {
+    claimKeys: codeClaimKeys,
+    claimOptions: codeClaimOptions,
   },
 };

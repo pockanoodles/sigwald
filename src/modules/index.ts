@@ -1,3 +1,4 @@
+import code from "@/modules/code/manifest";
 import courses from "@/modules/courses/manifest";
 import ladder from "@/modules/ladder/manifest";
 import nutrition from "@/modules/nutrition/manifest";
@@ -24,6 +25,7 @@ export const MODULES: readonly ModuleManifest[] = [
   people,
   training,
   nutrition,
+  code,
 ];
 
 export function isModuleId(id: string): id is ModuleId {
