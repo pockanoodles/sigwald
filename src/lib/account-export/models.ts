@@ -48,6 +48,7 @@ export const MODEL_SPECS: Record<string, ModelSpec> = {
   // include
   Project: { class: "include", owner: byUser },
   Task: { class: "include", owner: byUser },
+  TaskProposal: { class: "include", owner: byUser },
   Tag: { class: "include", owner: byUser },
   GoalCycle: { class: "include", owner: byUser },
   Goal: { class: "include", owner: byUser },

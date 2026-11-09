@@ -130,6 +130,7 @@ model User {
   foodEntries          FoodEntry[]
   jobs                 Job[]
   calendarSubscription CalendarSubscription?
+  taskProposals        TaskProposal[]
 }
 
 /// A secret URL that serves one user's plan as an iCalendar feed (lib/ical-out.ts).
@@ -366,6 +367,14 @@ model Task {
    * Set once a person picks this task's goal by hand; the goal rules (src/lib/sigwald/goal-rules.ts) then leave its links alone.
    */
   goalsPinned Boolean        @default(false)
+  /**
+   * Claim keys the task's creator declared beside the ones its source and modules imply (intake: CANVAS, course:<Canvas course id>), so the goals that claim that work file it.
+   */
+  claims      String[]       @default([])
+  /**
+   * The intake proposals this task came from or was matched to.
+   */
+  proposals   TaskProposal[]
 
   /**
    * Course materials this task needs — its module's files/pages and anything its description links to.
@@ -1602,4 +1611,74 @@ model PasswordReset {
 
   @@index([token])
   @@index([userId])
+}
+
+/**
+ * Intake: work a script read out of a source that isn't a task list (a Canvas
+ * announcement or Inbox message, mail), proposed as a task. Sigwald decides:
+ * a duplicate of a task it has is matched, a trusted and grounded one becomes
+ * a task on its own, and the rest wait for the person on Today.
+ */
+model TaskProposal {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /**
+   * The sender's stable name for it ("canvas-announcement:<id>#2"): sending it again updates, never duplicates.
+   */
+  ref         String
+  title       String
+  dueAt       DateTime
+  /**
+   * Estimated minutes.
+   */
+  duration    Int?
+  /**
+   * The source's own words asking for it, quoted.
+   */
+  evidence    String
+  /**
+   * The words that say when ("Due Friday 8:00am"), quoted from the source.
+   */
+  dueText     String
+  /**
+   * Where it came from, for a person: "SCHM2301 announcement: Reading plan for next week".
+   */
+  sourceLabel String
+  sourceUrl   String?
+  /**
+   * Claim keys the task it becomes carries (CANVAS, course:<id>).
+   */
+  claims      String[]  @default([])
+  /**
+   * The source can make work on its own (an instructor, not a mailing list).
+   */
+  trusted     Boolean   @default(false)
+  /**
+   * The source presents it as optional, extra credit or an invitation.
+   */
+  optional    Boolean   @default(false)
+  /**
+   * The sender found the quoted words in the source, and the date in the words.
+   */
+  grounded    Boolean   @default(false)
+  /**
+   * pending | accepted | dismissed | duplicate
+   */
+  status      String    @default("pending")
+  /**
+   * auto | person
+   */
+  decidedBy   String?
+  decidedAt   DateTime?
+  /**
+   * The task it became (accepted) or matched (duplicate).
+   */
+  taskId      String?
+  task        Task?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, ref])
+  @@index([userId, status])
 }
