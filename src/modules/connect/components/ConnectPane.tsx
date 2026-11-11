@@ -448,7 +448,9 @@ function SettingsForm({
           <div key={f.key} className="space-y-1.5">
             <Label htmlFor={id}>
               {f.label}
-              {(f.kind === "text" || f.kind === "list") && !f.optional ? (
+              {(f.kind === "text" || f.kind === "list") &&
+              !f.optional &&
+              (Array.isArray(v) ? v.length === 0 : !v) ? (
                 <span className="text-muted-foreground"> (needed)</span>
               ) : null}
             </Label>

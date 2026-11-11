@@ -192,11 +192,11 @@ export function ModuleCatalog() {
             <table className="min-w-full table-fixed border-separate border-spacing-0 text-[13px]">
               <colgroup>
                 <col style={{ width: 44 }} />
-                <col style={{ width: 150 }} />
-                <col style={{ width: 128 }} />
+                <col style={{ width: 140 }} />
+                <col style={{ width: 112 }} />
                 <col />
-                <col style={{ width: 180 }} />
-                <col style={{ width: 72 }} />
+                <col style={{ width: 150 }} />
+                <col style={{ width: 64 }} />
               </colgroup>
               <thead>
                 <tr>
