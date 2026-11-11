@@ -4,7 +4,7 @@ Sigwald is a personal calendar and task assistant. It runs either as a desktop a
 
 This document answers three questions in plain language: what leaves this machine, where it goes, and why. It is written to be read by someone who does not work on the code. It is kept by hand, so a change to how Sigwald talks to the outside world should change this file in the same commit.
 
-Last verified against the code on **2026-11-07**. For the privacy policy that sits on top of this document, see [kaitosoeno.com/sigwald/privacy](https://kaitosoeno.com/sigwald/privacy/) (`site/content/privacy.ts`), which a change here should follow.
+Last verified against the code on **2026-11-11**. For the privacy policy that sits on top of this document, see [kaitosoeno.com/sigwald/privacy](https://kaitosoeno.com/sigwald/privacy/) (`site/content/privacy.ts`), which a change here should follow.
 
 ---
 
@@ -21,6 +21,7 @@ Last verified against the code on **2026-11-07**. For the privacy policy that si
 | **Any calendar app that subscribes to your Sigwald plan link** (Apple Calendar, Google Calendar, Outlook, Thunderbird — you choose) | Your scheduled task titles, notes and times, plus events from Sigwald's own (LOCAL) calendars, when that app polls the private URL | No, it only reads | Show Sigwald's plan in that app |
 | **Resend** (`api.resend.com`, self-hosted servers only) | Your email address and a one-time reset link | It sends one email | Password reset |
 | **GitHub Releases** (desktop downloads from GitHub only) | A request for the newest release, which carries the app's version, your platform and your IP address | No | Update check |
+| **A service a connector module reads** (GitHub, Linear, Jira, Notion, Stripe and the rest of the marketplace's beta shelves), only while that module is on | The token or key you connected it with, and the reads that module makes (listed per service in [Connector modules](#connector-modules)) | No, every connector only reads | Turn the work, times and numbers you keep there into tasks, calendar events and readings |
 
 The Stats, People, Training, Nutrition, Work and Code modules send nothing out of Sigwald, so your goals, the people you keep in touch with, your workouts, what you eat, your shifts, the contacts you keep for each job and the days you committed code stay in the database. Work takes a schedule or a contact roster that a script sends to it, and Code takes, for each repo and day, the commit count and the commits' one-line messages that a script sends to it (never code or diffs). Neither calls out to fetch anything. Intake works the same way: a script (ops, with a model running on the same computer) reads Canvas announcements and messages for work and sends Sigwald proposals, each with the sentence it was read from. Sigwald decides which become tasks and sends nothing out for it.
 
@@ -28,7 +29,7 @@ Sigwald has no analytics, no crash reporting, no telemetry and no AI service. Th
 
 The landing page at kaitosoeno.com/sigwald collects nothing, which is covered in [The landing page](#the-landing-page).
 
-Some of Sigwald comes as modules you turn on or off at /modules, and each module's page there lists everything it sends out of Sigwald. Of today's modules only School talks to an outside service (Canvas, below). Stats and People keep everything in the local database.
+Some of Sigwald comes as modules you turn on or off at /modules, and each module's page there lists everything it sends out of Sigwald. School talks to Canvas (below), and each connector module talks to the one service it reads ([Connector modules](#connector-modules)). Stats and People keep everything in the local database.
 
 ---
 
@@ -43,6 +44,24 @@ Course materials move toward you. Page text goes into the local database, and fi
 Each sync compares what Canvas returns with what it stored last time and records what changed (a new announcement or file, a moved due date, a posted grade, new feedback, work gone missing) as course activity in the local database. That feed is what the School page's Activity view shows. Sigwald itself sends it nowhere. A tool you run on the same machine can read it through Sigwald's API (`/api/sigwald/activity`) and pass it on, for example to a chat app, and whatever it sends is that tool's data flow rather than Sigwald's.
 
 Canvas and CalDAV are also polled in the background, about every 15 minutes by default, and each poll makes the same kinds of requests. Canvas is reached only while the School module is on: turning it off stops every Canvas request, including the background poll, and keeps what was already mirrored in the local database until you delete it.
+
+## Connector modules
+
+The marketplace at /modules lists modules that read from a service outside Sigwald: GitHub, Linear, Jira, Notion, Stripe and many more, each on a shelf (Engineering, Writing, Money & hours, and so on). Every one is in beta, off until you turn it on, and read-only: no connector module can create, change or delete anything at its service.
+
+That is enforced in one place. Every request a connector module makes goes through `src/lib/connectors/egress.ts`, which allows it only to the hosts its service names (`src/lib/connectors/<service>/service.ts`). A request is a GET unless the service answers queries only by POST (a GraphQL API or a search endpoint), and a GraphQL request that names a mutation is refused. An address you type, such as a self-hosted site or a feed, must be a public one, never this machine or its network, and every redirect is checked again. A request gives up after 20 seconds and stops reading past 8 MB, and one pull makes at most 60 requests. Setting `SIGWALD_CONNECTORS=off` refuses all of them.
+
+A service that needs an account is connected with a token or key you make there and paste into the module's pane. Sigwald checks it with one read (whose it is) before keeping it, stores it encrypted like every other credential (`Connection.secret`), and never sends it back to the browser. Where a service lets you make a read-only token, the pane says how. Turning a module off stops its reads, and disconnecting deletes the token.
+
+What a module reads stays in the local database: a mirror of each thing it tracks (`ModuleItem`: its title, link, state and a few facts such as labels or a milestone), the task or calendar event made from it, and the day's numbers (`ModuleReading`). A module's events go on a LOCAL calendar of its own, so they are in your plan link if you have turned that on.
+
+| Service | Hosts | What Sigwald sends | Why |
+| --- | --- | --- | --- |
+| GitHub | `api.github.com` | Your token, with searches for the issues and pull requests that involve you | The reviews waiting on you and the issues assigned to you, and when they are done |
+| Linear | `api.linear.app` | Your API key, with GraphQL queries (sent by POST) for the issues assigned to you | Your assigned issues with their priority, due dates and cycles, and when they are done |
+| Stripe | `api.stripe.com` | A restricted key, with requests for your balance, disputes, active subscriptions and the last 30 days of charges | Your balance, recurring revenue and volume as numbers, and a task for each dispute that needs an answer. Sigwald refuses a full secret key |
+
+Some modules reach nothing outside. Golden hour works out the sun's position on this machine, Readouts only shows what other modules read, and Inbox only takes in what something sends to its private address (below).
 
 ## Google and Microsoft
 
@@ -142,7 +161,7 @@ When a CalDAV connection succeeds or fails, the server address and username are 
 
 These are kept here so they are not rediscovered later.
 
-- **External calls do not all go through one module per service.** Canvas goes through `src/lib/canvas/canvas-client.ts` and CalDAV through `src/lib/caldav/client.ts`. Google reaches out from several places (`google-calendar.ts`, `google.ts`, the Google task provider, the token manager and the `calendar/google` routes), Microsoft the same way (`outlook-calendar.ts`, `outlook-sync.ts`, `outlook-utils.ts`, the Outlook task provider, the token manager and the Outlook routes), and email from one module (`email-service.ts`). This makes "what exactly do we send?" harder to answer for those services than it should be, which is the reason the rule exists.
+- **External calls do not all go through one module per service.** Connector modules all go through `src/lib/connectors/egress.ts`, Canvas goes through `src/lib/canvas/canvas-client.ts` and CalDAV through `src/lib/caldav/client.ts`. Google reaches out from several places (`google-calendar.ts`, `google.ts`, the Google task provider, the token manager and the `calendar/google` routes), Microsoft the same way (`outlook-calendar.ts`, `outlook-sync.ts`, `outlook-utils.ts`, the Outlook task provider, the token manager and the Outlook routes), and email from one module (`email-service.ts`). This makes "what exactly do we send?" harder to answer for those services than it should be, which is the reason the rule exists.
 - **Logging is disabled but the batch path writes anyway.** There is no settings row, so the configured level is "none". The single-entry path respects that, but the batch path, which is where logs sent from the browser land, writes every entry regardless. Logging is therefore not fully off.
 - **iCal links are stored unencrypted.** A Google secret address lets whoever has it read that calendar, so it is close to a credential, but it sits in `CalendarFeed.url` beside every other feed's address, and that column is not one of the encrypted fields. Encrypting it means encrypting the column for every feed type, with a backfill that ships with the reader.
 - **Dormant webhook fields.** The database has columns for registering a Google Calendar push channel, but no code registers one, so Google never calls in.

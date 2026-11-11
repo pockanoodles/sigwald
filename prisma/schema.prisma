@@ -131,6 +131,11 @@ model User {
   jobs                 Job[]
   calendarSubscription CalendarSubscription?
   taskProposals        TaskProposal[]
+  connections          Connection[]
+  moduleSyncs          ModuleSync[]
+  moduleItems          ModuleItem[]
+  moduleReadings       ModuleReading[]
+  inboundLinks         InboundLink[]
 }
 
 /// A secret URL that serves one user's plan as an iCalendar feed (lib/ical-out.ts).
@@ -213,6 +218,8 @@ model CalendarEvent {
   instances        CalendarEvent[] @relation("EventInstances")
   recurringEventId String? // Google Calendar's recurring event ID
   shift            Shift?
+  /// What a connector module mirrors behind it (a booking, a holiday), when it came from one.
+  moduleItem       ModuleItem?
 
   // One row per (feed, external event, occurrence start).
   //
@@ -375,6 +382,10 @@ model Task {
    * The intake proposals this task came from or was matched to.
    */
   proposals   TaskProposal[]
+  /**
+   * What a connector module mirrors behind it (a GitHub issue, a Jira ticket), when it came from one.
+   */
+  moduleItem  ModuleItem?
 
   /**
    * Course materials this task needs — its module's files/pages and anything its description links to.
@@ -1681,4 +1692,115 @@ model TaskProposal {
 
   @@unique([userId, ref])
   @@index([userId, status])
+}
+
+/// Connector modules (src/modules/connect): an account at an outside service that modules read through, one per service per person. Its secret fields are encrypted (src/lib/crypto/prisma-encryption.ts) and never sent to the browser.
+model Connection {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// The service (src/lib/connectors): "github", "linear", …
+  service      String
+  /// The connect form's secret fields as JSON (a token, an API key), encrypted.
+  secret       String?
+  /// Its other fields (a site address, an email), and what checking it learned (the account's id).
+  config       Json      @default("{}")
+  /// Who Sigwald reads as, in the service's own words ("@octocat").
+  accountLabel String?
+  /// Why the service last refused it. Pulls through it wait until it's connected again.
+  error        String?
+  verifiedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([userId, service])
+}
+
+/// A connector module as one person has it set up: its settings and how its last pull went.
+model ModuleSync {
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moduleId      String
+  settings      Json      @default("{}")
+  /// What the last pull left for the next one.
+  cursor        Json?
+  /// The claim groups its tasks file under, with their labels ({"repo:a/b": "b"}), for the goal form.
+  groups        Json      @default("{}")
+  /// The LOCAL calendar its events go on.
+  feedId        String?
+  lastPullAt    DateTime?
+  lastSuccessAt DateTime?
+  /// Pulls in a row that failed: each one waits longer before the next.
+  failures      Int       @default(0)
+  /// Why the last pull didn't work, in plain words.
+  error         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@id([userId, moduleId])
+}
+
+/// One thing a connector module mirrors from outside (an issue, a ticket, a booking, a draft). Its task or calendar event is a projection of it (src/modules/connect/plan.ts).
+model ModuleItem {
+  id                String         @id @default(cuid())
+  userId            String
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moduleId          String
+  /// The service's own id for it.
+  externalId        String
+  /// task | event
+  kind              String
+  title             String
+  url               String?
+  /// open | done | gone (no longer there: closed without being done, unassigned, deleted)
+  state             String         @default("open")
+  doneAt            DateTime?
+  /// What its pane lists: [{ label, value }].
+  facts             Json           @default("[]")
+  /// The claim group it files under ("repo:owner/name").
+  group             String?
+  upstreamUpdatedAt DateTime?
+  firstSeenAt       DateTime       @default(now())
+  lastSeenAt        DateTime       @default(now())
+  taskId            String?        @unique
+  task              Task?          @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  /// When it first got a task. Set with no task means the task was deleted by hand, and no other is made.
+  projectedAt       DateTime?
+  eventId           String?        @unique
+  event             CalendarEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, moduleId, externalId])
+  @@index([userId, moduleId, state])
+}
+
+/// A number a connector module reads (subscribers, MRR, hours this week), one row per day.
+model ModuleReading {
+  id       String   @id @default(cuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moduleId String
+  key      String
+  label    String
+  /// count, percent, hours, minutes, or a currency's lowercase ISO code
+  unit     String
+  /// The day in the person's zone.
+  day      DateTime @db.Date
+  value    Float
+  at       DateTime
+
+  @@unique([userId, moduleId, key, day])
+  @@index([userId, moduleId])
+}
+
+/// A private address something outside can send work to (the Inbox module). Only the token's SHA-256 hash is stored; the token is shown once.
+model InboundLink {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moduleId   String
+  tokenHash  String    @unique
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+
+  @@unique([userId, moduleId])
 }

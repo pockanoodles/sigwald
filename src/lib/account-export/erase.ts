@@ -27,8 +27,8 @@ export function isEraseConfirm(confirm: unknown): boolean {
 
 /**
  * Deletes the caller's rows in every include/strip model (reverse insert
- * order), plus CalendarSubscription and TaskChange. Keeps User / Account /
- * Session / PasswordReset. Does not touch files on disk.
+ * order), plus CalendarSubscription, InboundLink and TaskChange. Keeps User /
+ * Account / Session / PasswordReset. Does not touch files on disk.
  */
 export async function eraseAccount(userId: string): Promise<void> {
   await prisma.$transaction(
@@ -39,6 +39,8 @@ export async function eraseAccount(userId: string): Promise<void> {
         });
       }
       await tx.calendarSubscription.deleteMany({ where: { userId } });
+      // A private address that outlived the data would keep taking work in.
+      await tx.inboundLink.deleteMany({ where: { userId } });
       await tx.taskChange.deleteMany({ where: { userId } });
 
       logger.info("Account data erased", { userId }, LOG_SOURCE);

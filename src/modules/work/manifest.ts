@@ -6,6 +6,8 @@ const work: ModuleManifest = {
   summary:
     "The jobs you work shifts at: every shift on the calendar, the hours and pay they add up to, and a reminder to hand in your timesheet.",
   defaultOn: false,
+  shelf: "money",
+  madeFor: ["Shift workers", "Hourly jobs", "Student workers"],
   page: {
     href: "/work",
     keywords: [

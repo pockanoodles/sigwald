@@ -9,18 +9,23 @@ import {
   sourceClaims,
 } from "@/modules";
 
+/** The modules that came before the marketplace, which keep their places at its head. */
+const FIRST = [
+  "ladder",
+  "work",
+  "courses",
+  "people",
+  "training",
+  "nutrition",
+  "code",
+];
+/** Everything after them, in catalog order. */
+const LATER = MODULES.slice(FIRST.length);
+
 describe("resolveModuleStates", () => {
   it("lists finished modules before the ones in beta", () => {
     const ids = MODULES.map((m) => m.id);
-    expect(ids).toEqual([
-      "ladder",
-      "work",
-      "courses",
-      "people",
-      "training",
-      "nutrition",
-      "code",
-    ]);
+    expect(ids.slice(0, FIRST.length)).toEqual(FIRST);
     const firstBeta = MODULES.findIndex((m) => m.beta);
     expect(MODULES.slice(firstBeta).every((m) => m.beta)).toBe(true);
   });
@@ -45,6 +50,11 @@ describe("resolveModuleStates", () => {
       { id: "courses", on: true, position: 5 },
       { id: "nutrition", on: false, position: 5 },
       { id: "code", on: false, position: 6 },
+      ...LATER.map((m, i) => ({
+        id: m.id,
+        on: false,
+        position: FIRST.length + i,
+      })),
     ]);
   });
 
@@ -68,6 +78,7 @@ describe("resolveModuleStates", () => {
       "training",
       "nutrition",
       "code",
+      ...LATER.map((m) => m.id),
     ]);
   });
 });
@@ -80,16 +91,17 @@ describe("hiddenSourcesOf", () => {
       "PEOPLE",
       "TRAINING",
       "CODE",
+      ...LATER.flatMap((m) => m.sources),
     ]);
     expect(
       hiddenSourcesOf(
-        resolveModuleStates([
-          { moduleId: "courses", enabled: true, position: 0 },
-          { moduleId: "people", enabled: true, position: 1 },
-          { moduleId: "training", enabled: true, position: 2 },
-          { moduleId: "work", enabled: true, position: 3 },
-          { moduleId: "code", enabled: true, position: 4 },
-        ])
+        resolveModuleStates(
+          MODULES.map((m, position) => ({
+            moduleId: m.id,
+            enabled: true,
+            position,
+          }))
+        )
       )
     ).toEqual([]);
   });

@@ -94,6 +94,13 @@ export function buildPrismaMock(
     createMany: jest.fn(),
     update: jest.fn(),
   };
+  tx.inboundLink = {
+    count: jest.fn(),
+    findMany: jest.fn(),
+    deleteMany: jest.fn(async () => ({ count: 0 })),
+    createMany: jest.fn(),
+    update: jest.fn(),
+  };
   tx.taskChange = {
     count: jest.fn(),
     findMany: jest.fn(),

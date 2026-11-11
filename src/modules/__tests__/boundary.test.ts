@@ -82,6 +82,9 @@ const OWNED: Record<string, string[]> = {
     "src/app/api/sigwald/shifts/",
   ],
   code: ["src/modules/code/", "src/app/api/sigwald/code/"],
+  github: ["src/modules/github/"],
+  linear: ["src/modules/linear/"],
+  stripe: ["src/modules/stripe/"],
 };
 
 const REGISTRIES = new Set([

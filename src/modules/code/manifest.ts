@@ -6,6 +6,8 @@ const code: ModuleManifest = {
   summary:
     "Your commits, read as finished work: each day you commit to a repo is a done task that a goal can claim.",
   defaultOn: false,
+  shelf: "engineering",
+  madeFor: ["Engineers", "Indie hackers"],
   beta: true,
   sources: ["CODE"],
   claimLabels: { CODE: "All code work" },

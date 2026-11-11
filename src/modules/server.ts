@@ -8,6 +8,8 @@ import type { SearchGroup, SearchQuery } from "@/lib/search/types";
 import type { RankSignals } from "@/lib/sigwald/rank-stage1";
 
 import { codeClaimKeys, codeClaimOptions } from "@/modules/code/facts";
+import type { PullFn } from "@/modules/connect/pull";
+import { connectorServer } from "@/modules/connect/server";
 import {
   courseClaimKeys,
   courseClaimOptions,
@@ -17,11 +19,14 @@ import {
 import { courseProofItems } from "@/modules/courses/proof";
 import { searchCourses } from "@/modules/courses/search";
 import { syncCanvasIfDue } from "@/modules/courses/server";
+import { pullGithub } from "@/modules/github/pull";
 import { goalRankSignals, goalTaskFacts } from "@/modules/ladder/facts";
 import { searchGoals } from "@/modules/ladder/search";
 import { linkChangedTasksToGoals } from "@/modules/ladder/server";
+import { pullLinear } from "@/modules/linear/pull";
 import { reconcileReachOuts } from "@/modules/people/reach-out";
 import { searchPeople } from "@/modules/people/search";
+import { pullStripe } from "@/modules/stripe/pull";
 import {
   routineClaimKeys,
   routineClaimOptions,
@@ -97,6 +102,12 @@ export interface ServerContributions {
    * thing, each hit linking to its page opened on it. Asked only while it's on.
    */
   search?: (db: Db, userId: string, q: SearchQuery) => Promise<SearchGroup[]>;
+  /**
+   * A connector module's read of the outside (src/modules/connect): its job
+   * runs it when it's due, and "Pull now" runs it at once. Made by
+   * `connectorServer`, never written by hand.
+   */
+  connector?: { pull: PullFn };
 }
 
 export const SERVER_MODULES: Record<ModuleId, ServerContributions> = {
@@ -139,4 +150,8 @@ export const SERVER_MODULES: Record<ModuleId, ServerContributions> = {
     claimKeys: codeClaimKeys,
     claimOptions: codeClaimOptions,
   },
+  // Connector modules (src/modules/connect): each is its pull.
+  github: connectorServer("github", pullGithub),
+  linear: connectorServer("linear", pullLinear),
+  stripe: connectorServer("stripe", pullStripe),
 };

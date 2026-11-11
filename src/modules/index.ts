@@ -1,8 +1,11 @@
 import code from "@/modules/code/manifest";
 import courses from "@/modules/courses/manifest";
+import github from "@/modules/github/manifest";
 import ladder from "@/modules/ladder/manifest";
+import linear from "@/modules/linear/manifest";
 import nutrition from "@/modules/nutrition/manifest";
 import people from "@/modules/people/manifest";
+import stripe from "@/modules/stripe/manifest";
 import training from "@/modules/training/manifest";
 import type {
   ClaimOption,
@@ -26,6 +29,9 @@ export const MODULES: readonly ModuleManifest[] = [
   training,
   nutrition,
   code,
+  github,
+  linear,
+  stripe,
 ];
 
 export function isModuleId(id: string): id is ModuleId {

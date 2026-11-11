@@ -6,6 +6,8 @@ const training: ModuleManifest = {
   summary:
     "The workouts you repeat: a schedule for each, a session in Today when one is due, and what you lifted last time.",
   defaultOn: false,
+  shelf: "health",
+  madeFor: ["Lifters", "Anyone training"],
   beta: true,
   page: {
     href: "/training",
