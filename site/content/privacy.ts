@@ -34,7 +34,7 @@ export interface PolicyDoc {
   sections: PolicySection[];
 }
 
-export const UPDATED = "2026-10-29";
+export const UPDATED = "2026-11-11";
 
 const EMAIL = "soenokaito1@gmail.com";
 const LINKS = {
@@ -55,7 +55,7 @@ const en: PolicyDoc = {
   },
   eyebrow: "Privacy policy",
   title: "What Sigwald sends, where it goes, and why.",
-  updated: "Last updated 29 October 2026",
+  updated: "Last updated 11 November 2026",
   heads: { where: "Where", what: "What", why: "Why" },
   sections: [
     {
@@ -70,7 +70,7 @@ const en: PolicyDoc = {
       id: "services",
       heading: "The services you connect",
       paras: [
-        "A service hears from Sigwald only after you connect it. The Stats, People, Training, Nutrition and Work modules send nothing out of Sigwald.",
+        "A service hears from Sigwald only after you connect it. The Stats, People, Training, Nutrition, Work, Readouts, Golden hour and Inbox modules send nothing out of Sigwald.",
       ],
       ledger: [
         { where: "Google Calendar and Google Tasks", what: "Event and task titles, notes, locations and times in both directions, your sign-in tokens, and your account email once when you connect", why: "To show and update your calendar and tasks" },
@@ -78,6 +78,7 @@ const en: PolicyDoc = {
         { where: "A CalDAV server you name", what: "Event content, plus your username and password on each request", why: "To sync that calendar" },
         { where: "The host of an iCal link you add", what: "A plain request for the link, which carries your IP address and none of your data", why: "To show that calendar, read-only" },
         { where: "Canvas, at your school's address, while the School module is on", what: "Your access token and read-only requests", why: "To bring in courses, assignments, grades and feedback, announcements, Inbox messages and course files, which are saved on your device" },
+        { where: "A service a marketplace module reads (GitHub, Linear, Jira, Notion, Stripe and others), only while that module is on", what: "The token or key you connected it with, and read-only requests", why: "To turn your work, bookings and numbers there into tasks, calendar events and readings. Nothing is written back" },
         { where: "GitHub Releases, for GitHub downloads and the Homebrew and winget installs", what: "The app version, your platform and your IP address", why: "To check for updates, which store, Snap and Linux package builds never do" },
         { where: "Resend, on a server whose operator turns it on", what: "Your email address and a reset link", why: "To send a password reset email" },
       ],
@@ -136,7 +137,7 @@ const ja: PolicyDoc = {
   },
   eyebrow: "プライバシーポリシー",
   title: "Sigwald が送るもの、その送信先と目的。",
-  updated: "最終更新 2026年10月29日",
+  updated: "最終更新 2026年11月11日",
   heads: { where: "送信先", what: "内容", why: "目的" },
   sections: [
     {
@@ -151,7 +152,7 @@ const ja: PolicyDoc = {
       id: "services",
       heading: "接続するサービス",
       paras: [
-        "Sigwald が外部のサービスと通信するのは、そのサービスを接続してからです。Stats、People、Training、Nutrition、Work の各モジュールは、Sigwald の外に何も送りません。",
+        "Sigwald が外部のサービスと通信するのは、そのサービスを接続してからです。Stats、People、Training、Nutrition、Work、Readouts、Golden hour、Inbox の各モジュールは、Sigwald の外に何も送りません。",
       ],
       ledger: [
         { where: "Google カレンダーと Google ToDo リスト", what: "予定とタスクのタイトル、メモ、場所、日時（双方向）、ログイン用のトークン、接続時に一度だけ読むアカウントのメールアドレス", why: "予定とタスクを表示し、更新するため" },
@@ -159,6 +160,7 @@ const ja: PolicyDoc = {
         { where: "指定した CalDAV サーバー", what: "予定の内容と、毎回のリクエストに含まれるユーザー名とパスワード", why: "そのカレンダーを同期するため" },
         { where: "追加した iCal リンクの配信元", what: "リンクへの通常のリクエスト（IP アドレスを含み、ご自身のデータは含みません）", why: "そのカレンダーを読み取り専用で表示するため" },
         { where: "学校の Canvas（School モジュールが有効なときのみ）", what: "アクセストークンと読み取りのみのリクエスト", why: "授業、課題、成績とフィードバック、お知らせ、受信トレイのメッセージ、授業資料を取り込むためで、資料は端末に保存されます" },
+        { where: "マーケットプレイスのモジュールが読むサービス（GitHub、Linear、Jira、Notion、Stripe など。そのモジュールが有効なときのみ）", what: "接続に使ったトークンまたはキーと、読み取りのみのリクエスト", why: "そこでの作業、予約、数値をタスク、カレンダーの予定、記録として取り込むためで、書き込みは一切しません" },
         { where: "GitHub Releases（GitHub からのダウンロード版、Homebrew 版、winget 版）", what: "アプリのバージョン、OS、IP アドレス", why: "アップデートを確認するためで、ストア版、Snap 版、Linux パッケージ版は確認しません" },
         { where: "Resend（運用者が有効にしたサーバーのみ）", what: "メールアドレスと再設定用リンク", why: "パスワード再設定のメールを送るため" },
       ],
