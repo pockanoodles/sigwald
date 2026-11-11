@@ -82,6 +82,8 @@ export interface ConnectSpec {
   forgetPastEvents?: boolean;
   /** The reading the top bar shows when it's asked to (`STATUS_FIELD`); its first reading otherwise. */
   headline?: string;
+  /** Things are sent to it (at a private address) rather than read by a pull. */
+  receives?: boolean;
 }
 
 export const DEFAULT_MAX_OPEN = 30;

@@ -21,7 +21,12 @@ export type ModuleId =
   | "code"
   | "github"
   | "linear"
-  | "stripe";
+  | "stripe"
+  | "daylight"
+  | "inbox"
+  | "readouts"
+  | "deadlines"
+  | "sheet";
 
 /**
  * A shelf in the marketplace (/modules). Every module sits on exactly one;

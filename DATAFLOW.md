@@ -60,6 +60,7 @@ What a module reads stays in the local database: a mirror of each thing it track
 | GitHub | `api.github.com` | Your token, with searches for the issues and pull requests that involve you | The reviews waiting on you and the issues assigned to you, and when they are done |
 | Linear | `api.linear.app` | Your API key, with GraphQL queries (sent by POST) for the issues assigned to you | Your assigned issues with their priority, due dates and cycles, and when they are done |
 | Stripe | `api.stripe.com` | A restricted key, with requests for your balance, disputes, active subscriptions and the last 30 days of charges | Your balance, recurring revenue and volume as numbers, and a task for each dispute that needs an answer. Sigwald refuses a full secret key |
+| Public links (Deadline feed, Spreadsheet, Feeds) | Only the addresses you put in the module's settings | A plain request for each address, which carries your IP address and no account | Read the calendar, spreadsheet or feed at each address. Each address must be a public one, checked at every redirect |
 
 Some modules reach nothing outside. Golden hour works out the sun's position on this machine, Readouts only shows what other modules read, and Inbox only takes in what something sends to its private address (below).
 

@@ -200,9 +200,9 @@ function AccountPart({
     return (
       <p className="text-sm text-foreground">
         Nothing to connect.{" "}
-        {moduleById(moduleId).egress.length === 0
-          ? "It works everything out on this machine, and nothing leaves Sigwald."
-          : "Things are sent to it; it reaches out to nothing."}
+        {spec.receives
+          ? "Things are sent to its private address; it reaches out to nothing."
+          : "It works everything out on this machine, and nothing leaves Sigwald."}
       </p>
     );
   }

@@ -19,13 +19,17 @@ import {
 import { courseProofItems } from "@/modules/courses/proof";
 import { searchCourses } from "@/modules/courses/search";
 import { syncCanvasIfDue } from "@/modules/courses/server";
+import { pullDaylight } from "@/modules/daylight/pull";
+import { pullDeadlines } from "@/modules/deadlines/pull";
 import { pullGithub } from "@/modules/github/pull";
+import { pullInbox } from "@/modules/inbox/pull";
 import { goalRankSignals, goalTaskFacts } from "@/modules/ladder/facts";
 import { searchGoals } from "@/modules/ladder/search";
 import { linkChangedTasksToGoals } from "@/modules/ladder/server";
 import { pullLinear } from "@/modules/linear/pull";
 import { reconcileReachOuts } from "@/modules/people/reach-out";
 import { searchPeople } from "@/modules/people/search";
+import { pullSheet } from "@/modules/sheet/pull";
 import { pullStripe } from "@/modules/stripe/pull";
 import {
   routineClaimKeys,
@@ -154,4 +158,10 @@ export const SERVER_MODULES: Record<ModuleId, ServerContributions> = {
   github: connectorServer("github", pullGithub),
   linear: connectorServer("linear", pullLinear),
   stripe: connectorServer("stripe", pullStripe),
+  daylight: connectorServer("daylight", pullDaylight),
+  inbox: connectorServer("inbox", pullInbox),
+  // Readouts reads the readings the connector modules keep; nothing of its own on the server.
+  readouts: {},
+  deadlines: connectorServer("deadlines", pullDeadlines),
+  sheet: connectorServer("sheet", pullSheet),
 };

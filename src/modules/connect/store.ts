@@ -38,11 +38,9 @@ export interface Applied {
   readings: number;
 }
 
-/** The task source a connector module's tasks carry: the first it declares. */
-function sourceOf(moduleId: ModuleId): string {
-  const source = moduleById(moduleId).sources[0];
-  if (!source) throw new Error(`${moduleId} declares no task source`);
-  return source;
+/** The task source a connector module's tasks carry: the first it declares (none for one that makes no tasks). */
+function sourceOf(moduleId: ModuleId): string | null {
+  return moduleById(moduleId).sources[0] ?? null;
 }
 
 async function loadHeld(
@@ -139,7 +137,7 @@ async function writeOne(
   write: ItemWrite,
   context: {
     now: Date;
-    source: string;
+    source: string | null;
     category: string;
     feed: () => Promise<string>;
   }
@@ -170,6 +168,8 @@ async function writeOne(
 
   let changedTask: string | null = null;
   if (write.task?.kind === "create") {
+    if (!context.source)
+      throw new Error(`${moduleId} makes tasks but declares no task source`);
     const task = await tx.task.create({
       data: {
         ...write.task.fields,

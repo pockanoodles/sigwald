@@ -110,7 +110,8 @@ export const useModulesStore = create<ModulesStore>()(
       },
 
       move: async (id, direction) => {
-        const on = get().states.filter((s) => s.on);
+        // Only modules with a page sit in the rail, so only they trade places.
+        const on = get().states.filter((s) => s.on && moduleById(s.id).page);
         const index = on.findIndex((s) => s.id === id);
         const other = on[index + direction];
         if (index < 0 || !other) return;

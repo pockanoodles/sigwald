@@ -1,10 +1,15 @@
 import code from "@/modules/code/manifest";
 import courses from "@/modules/courses/manifest";
+import daylight from "@/modules/daylight/manifest";
+import deadlines from "@/modules/deadlines/manifest";
 import github from "@/modules/github/manifest";
+import inbox from "@/modules/inbox/manifest";
 import ladder from "@/modules/ladder/manifest";
 import linear from "@/modules/linear/manifest";
 import nutrition from "@/modules/nutrition/manifest";
 import people from "@/modules/people/manifest";
+import readouts from "@/modules/readouts/manifest";
+import sheet from "@/modules/sheet/manifest";
 import stripe from "@/modules/stripe/manifest";
 import training from "@/modules/training/manifest";
 import type {
@@ -32,6 +37,11 @@ export const MODULES: readonly ModuleManifest[] = [
   github,
   linear,
   stripe,
+  daylight,
+  inbox,
+  readouts,
+  deadlines,
+  sheet,
 ];
 
 export function isModuleId(id: string): id is ModuleId {

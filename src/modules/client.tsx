@@ -5,6 +5,7 @@ import type { ComponentType } from "react";
 import type { IconType } from "react-icons";
 import {
   HiOutlineBriefcase,
+  HiOutlineChartBar,
   HiOutlineCollection,
   HiOutlineFlag,
   HiOutlineUserGroup,
@@ -33,6 +34,7 @@ import type { FocusQueueTask } from "@/lib/sigwald/parse-task";
 
 import { moduleForSource } from "@/modules";
 import { connectorClient } from "@/modules/connect/client";
+import { InboxPane } from "@/modules/inbox/components/InboxPane";
 import { useCoursesTasksLens } from "@/modules/courses/tasks";
 import { TodayGoalSection } from "@/modules/ladder/components/TodayGoalSection";
 import { useLadderTasksLens } from "@/modules/ladder/tasks";
@@ -156,6 +158,12 @@ export const CLIENT_MODULES: Record<ModuleId, ClientContributions> = {
   github: connectorClient("github"),
   linear: connectorClient("linear"),
   stripe: connectorClient("stripe"),
+  daylight: connectorClient("daylight"),
+  // The Inbox's pane adds its private address above the connector pane.
+  inbox: { ...connectorClient("inbox"), Settings: InboxPane },
+  readouts: { command: { icon: HiOutlineChartBar, shortcut: "gr" } },
+  deadlines: connectorClient("deadlines"),
+  sheet: connectorClient("sheet"),
 };
 
 /**
