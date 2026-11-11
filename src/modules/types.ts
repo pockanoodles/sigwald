@@ -36,7 +36,22 @@ export type ModuleId =
   | "scholar"
   | "codeforces"
   | "bluesky"
-  | "hackernews";
+  | "hackernews"
+  | "gitlab"
+  | "jira"
+  | "sentry"
+  | "pagerduty"
+  | "asana"
+  | "clickup"
+  | "trello"
+  | "todoist"
+  | "notion"
+  | "airtable"
+  | "figma"
+  | "ghost"
+  | "wordpress"
+  | "beehiiv"
+  | "kit";
 
 /**
  * A shelf in the marketplace (/modules). Every module sits on exactly one;

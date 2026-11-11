@@ -1,5 +1,9 @@
+import airtable from "@/modules/airtable/manifest";
 import arxiv from "@/modules/arxiv/manifest";
+import asana from "@/modules/asana/manifest";
+import beehiiv from "@/modules/beehiiv/manifest";
 import bluesky from "@/modules/bluesky/manifest";
+import clickup from "@/modules/clickup/manifest";
 import code from "@/modules/code/manifest";
 import codeforces from "@/modules/codeforces/manifest";
 import courses from "@/modules/courses/manifest";
@@ -7,20 +11,30 @@ import daylight from "@/modules/daylight/manifest";
 import deadlines from "@/modules/deadlines/manifest";
 import fedreg from "@/modules/fedreg/manifest";
 import feeds from "@/modules/feeds/manifest";
+import figma from "@/modules/figma/manifest";
+import ghost from "@/modules/ghost/manifest";
 import github from "@/modules/github/manifest";
+import gitlab from "@/modules/gitlab/manifest";
 import hackernews from "@/modules/hackernews/manifest";
 import holidays from "@/modules/holidays/manifest";
 import inbox from "@/modules/inbox/manifest";
+import jira from "@/modules/jira/manifest";
 import jobs from "@/modules/jobs/manifest";
+import kit from "@/modules/kit/manifest";
 import ladder from "@/modules/ladder/manifest";
 import linear from "@/modules/linear/manifest";
+import notion from "@/modules/notion/manifest";
 import nutrition from "@/modules/nutrition/manifest";
+import pagerduty from "@/modules/pagerduty/manifest";
 import people from "@/modules/people/manifest";
 import readouts from "@/modules/readouts/manifest";
 import scholar from "@/modules/scholar/manifest";
+import sentry from "@/modules/sentry/manifest";
 import sheet from "@/modules/sheet/manifest";
 import stripe from "@/modules/stripe/manifest";
+import todoist from "@/modules/todoist/manifest";
 import training from "@/modules/training/manifest";
+import trello from "@/modules/trello/manifest";
 import type {
   ClaimOption,
   ModuleId,
@@ -28,6 +42,7 @@ import type {
   ModuleState,
 } from "@/modules/types";
 import weather from "@/modules/weather/manifest";
+import wordpress from "@/modules/wordpress/manifest";
 import work from "@/modules/work/manifest";
 
 /**
@@ -62,6 +77,21 @@ export const MODULES: readonly ModuleManifest[] = [
   codeforces,
   bluesky,
   hackernews,
+  gitlab,
+  jira,
+  sentry,
+  pagerduty,
+  asana,
+  clickup,
+  trello,
+  todoist,
+  notion,
+  airtable,
+  figma,
+  ghost,
+  wordpress,
+  beehiiv,
+  kit,
 ];
 
 export function isModuleId(id: string): id is ModuleId {

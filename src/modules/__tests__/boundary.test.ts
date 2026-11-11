@@ -104,6 +104,21 @@ const OWNED: Record<string, string[]> = {
   codeforces: ["src/modules/codeforces/"],
   bluesky: ["src/modules/bluesky/"],
   hackernews: ["src/modules/hackernews/"],
+  gitlab: ["src/modules/gitlab/"],
+  jira: ["src/modules/jira/"],
+  sentry: ["src/modules/sentry/"],
+  pagerduty: ["src/modules/pagerduty/"],
+  asana: ["src/modules/asana/"],
+  clickup: ["src/modules/clickup/"],
+  trello: ["src/modules/trello/"],
+  todoist: ["src/modules/todoist/"],
+  notion: ["src/modules/notion/"],
+  airtable: ["src/modules/airtable/"],
+  figma: ["src/modules/figma/"],
+  ghost: ["src/modules/ghost/"],
+  wordpress: ["src/modules/wordpress/"],
+  beehiiv: ["src/modules/beehiiv/"],
+  kit: ["src/modules/kit/"],
 };
 
 const REGISTRIES = new Set([
