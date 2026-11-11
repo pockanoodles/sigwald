@@ -32,6 +32,7 @@ import type { TasksLens } from "@/components/tasks/lens";
 import type { FocusQueueTask } from "@/lib/sigwald/parse-task";
 
 import { moduleForSource } from "@/modules";
+import { connectorClient } from "@/modules/connect/client";
 import { useCoursesTasksLens } from "@/modules/courses/tasks";
 import { TodayGoalSection } from "@/modules/ladder/components/TodayGoalSection";
 import { useLadderTasksLens } from "@/modules/ladder/tasks";
@@ -150,6 +151,11 @@ export const CLIENT_MODULES: Record<ModuleId, ClientContributions> = {
   },
   // No page: Code's days show in Tasks and on Stats as finished work.
   code: {},
+  // Connector modules (src/modules/connect): their pane in /modules, their
+  // tasks' panes and a count in the top bar, all made from the manifest.
+  github: connectorClient("github"),
+  linear: connectorClient("linear"),
+  stripe: connectorClient("stripe"),
 };
 
 /**

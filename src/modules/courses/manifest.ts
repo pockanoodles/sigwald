@@ -6,6 +6,8 @@ const courses: ModuleManifest = {
   summary:
     "Your Canvas courses: assignments ranked by what they're worth, with grades, files and announcements.",
   defaultOn: false,
+  shelf: "learning",
+  madeFor: ["Students on Canvas"],
   page: {
     href: "/courses",
     keywords: [

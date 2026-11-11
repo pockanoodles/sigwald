@@ -131,6 +131,9 @@ export const MODEL_SPECS: Record<string, ModelSpec> = {
     class: "include",
     owner: (userId) => ({ provider: { userId } }),
   },
+  ModuleSync: { class: "include", owner: byUser },
+  ModuleItem: { class: "include", owner: byUser },
+  ModuleReading: { class: "include", owner: byUser },
 
   // strip
   ConnectedAccount: {
@@ -148,6 +151,12 @@ export const MODEL_SPECS: Record<string, ModelSpec> = {
     fields: { localPath: null, downloadError: null },
     owner: (userId) => ({ course: { userId } }),
   },
+  // A connector module's account: the service and who it was, never the token.
+  Connection: {
+    class: "strip",
+    fields: { secret: null, verifiedAt: null, error: null },
+    owner: byUser,
+  },
 
   // exclude
   User: { class: "exclude" },
@@ -157,6 +166,8 @@ export const MODEL_SPECS: Record<string, ModelSpec> = {
   PasswordReset: { class: "exclude" },
   OAuthRequest: { class: "exclude" },
   CalendarSubscription: { class: "exclude" },
+  // The Inbox's private address: a credential, never carried to another install.
+  InboundLink: { class: "exclude" },
   TaskChange: { class: "exclude" },
   Log: { class: "exclude" },
   SystemSettings: { class: "exclude" },

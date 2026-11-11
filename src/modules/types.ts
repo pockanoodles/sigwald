@@ -9,6 +9,7 @@
  * listed in `src/modules/client.tsx`, and its jobs and ranking hooks in
  * `src/modules/server.ts`.
  */
+import type { ConnectSpec } from "@/modules/connect/spec";
 
 export type ModuleId =
   | "courses"
@@ -17,7 +18,29 @@ export type ModuleId =
   | "training"
   | "nutrition"
   | "work"
-  | "code";
+  | "code"
+  | "github"
+  | "linear"
+  | "stripe";
+
+/**
+ * A shelf in the marketplace (/modules). Every module sits on exactly one;
+ * the shelves' names and order are in `src/modules/shelves.ts`.
+ */
+export type ModuleShelf =
+  | "goals"
+  | "engineering"
+  | "projects"
+  | "creative"
+  | "writing"
+  | "research"
+  | "clients"
+  | "money"
+  | "learning"
+  | "health"
+  | "people"
+  | "calendar"
+  | "anything";
 
 /** One thing a module sends out of Sigwald, written for someone who isn't an engineer. */
 export interface ModuleEgress {
@@ -38,6 +61,16 @@ export interface ModuleManifest {
   defaultOn: boolean;
   /** Still taking shape: it works, but what it does and keeps may change. */
   beta?: boolean;
+  /** Its shelf in the marketplace. */
+  shelf: ModuleShelf;
+  /** Who it's made for, a few words each ("Engineers", "Podcasters"). The marketplace's search reads these. */
+  madeFor: readonly string[];
+  /**
+   * Set for a connector module: one that reads from a service outside
+   * Sigwald, or works something out from settings alone, through the
+   * framework in src/modules/connect.
+   */
+  connect?: ConnectSpec;
   /** Its one entry in the rail. Other views of it live in the top bar. */
   page?: { href: string; keywords: string[] };
   /** The `Task.source` values it owns. When it's off, those tasks leave every list. */

@@ -38,6 +38,8 @@ const ENCRYPTED_FIELDS: Record<string, readonly string[]> = {
   ConnectedAccount: ["accessToken", "refreshToken"],
   TaskProvider: ["accessToken", "refreshToken"],
   SystemSettings: ["googleClientSecret", "outlookClientSecret"],
+  // Connector modules: the token or key each service was connected with, as JSON.
+  Connection: ["secret"],
 };
 
 /**

@@ -8,6 +8,7 @@ import type { SearchGroup, SearchQuery } from "@/lib/search/types";
 import type { RankSignals } from "@/lib/sigwald/rank-stage1";
 
 import { MODULES } from "@/modules";
+import { type PullOutcome, runPull } from "@/modules/connect/run";
 import {
   type FactsRequest,
   SERVER_MODULES,
@@ -119,17 +120,38 @@ export async function moduleProofItems(
   return items;
 }
 
-/** Every claim the modules offer goals beyond whole sources, on or off. */
+/**
+ * Every claim the modules offer goals beyond whole sources, on or off. Two
+ * modules can offer the same key (Code and GitHub both offer a repo): the
+ * first in catalog order names it.
+ */
 export async function moduleClaimOptions(
   db: Db,
   userId: string
 ): Promise<ClaimOption[]> {
   const options: ClaimOption[] = [];
+  const keys = new Set<string>();
   for (const m of MODULES) {
     const ask = SERVER_MODULES[m.id].claimOptions;
-    if (ask) options.push(...(await ask(db, userId)));
+    if (!ask) continue;
+    for (const option of await ask(db, userId)) {
+      if (keys.has(option.key)) continue;
+      keys.add(option.key);
+      options.push(option);
+    }
   }
   return options;
+}
+
+/** A connector module's pull, run now ("Pull now"). Null for a module that isn't one. */
+export async function pullModuleNow(
+  userId: string,
+  id: ModuleId
+): Promise<PullOutcome | null> {
+  const connector = SERVER_MODULES[id].connector;
+  return connector
+    ? runPull(userId, id, connector.pull, { force: true })
+    : null;
 }
 
 /**

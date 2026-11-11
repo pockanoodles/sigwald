@@ -29,6 +29,7 @@ const TARGETS = [
     model: "SystemSettings",
     fields: ["googleClientSecret", "outlookClientSecret"],
   },
+  { model: "Connection", fields: ["secret"] },
 ] as const;
 
 type Row = { id: string } & Record<string, unknown>;

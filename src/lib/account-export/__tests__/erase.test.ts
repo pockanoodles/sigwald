@@ -64,6 +64,9 @@ describe("account erase", () => {
     expect(db.__tx.calendarSubscription.deleteMany).toHaveBeenCalledWith({
       where: { userId: "user-1" },
     });
+    expect(db.__tx.inboundLink.deleteMany).toHaveBeenCalledWith({
+      where: { userId: "user-1" },
+    });
     expect(db.__tx.taskChange.deleteMany).toHaveBeenCalledWith({
       where: { userId: "user-1" },
     });

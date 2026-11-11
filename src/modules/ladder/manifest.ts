@@ -10,6 +10,8 @@ const ladder: ModuleManifest = {
   // useful. Everyone with an account before then keeps it on (migration
   // 20261029150000_stats_off_by_default).
   defaultOn: false,
+  shelf: "goals",
+  madeFor: ["Anyone with goals", "Planners"],
   page: {
     href: "/goals",
     keywords: [
