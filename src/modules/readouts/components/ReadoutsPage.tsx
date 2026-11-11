@@ -120,12 +120,12 @@ export function ReadoutsPage() {
               <colgroup>
                 <col style={{ width: 44 }} />
                 <col />
-                <col style={{ width: 130 }} />
-                <col style={{ width: 110 }} />
-                <col style={{ width: 92 }} />
-                <col style={{ width: 92 }} />
-                <col style={{ width: 92 }} />
-                <col style={{ width: 96 }} />
+                <col style={{ width: 112 }} />
+                <col style={{ width: 100 }} />
+                <col style={{ width: 72 }} />
+                <col style={{ width: 72 }} />
+                <col style={{ width: 72 }} />
+                <col style={{ width: 84 }} />
               </colgroup>
               <thead>
                 <tr>
