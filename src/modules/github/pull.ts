@@ -21,6 +21,7 @@ import {
   type PulledTask,
   dueDay,
   fact,
+  impactFromLabels,
   toDate,
 } from "@/modules/connect/pull";
 import { setting } from "@/modules/connect/settings";
@@ -45,23 +46,6 @@ function labelNames(issue: GithubIssue): string[] {
   return issue.labels
     .map((l) => (typeof l === "string" ? l : (l.name ?? "")))
     .filter(Boolean);
-}
-
-/** What its labels say about how much it matters, if they say anything. */
-export function impactFromLabels(
-  labels: string[],
-  fallback: number | null
-): number | null {
-  const text = labels.join(" ").toLowerCase();
-  if (
-    /\b(p0|sev[- ]?0|sev[- ]?1|critical|urgent|blocker|security)\b/.test(text)
-  )
-    return 0.9;
-  if (/\b(p1|high|important|priority)\b/.test(text)) return 0.7;
-  if (/\b(p2|medium)\b/.test(text)) return 0.4;
-  if (/\b(p3|p4|low|minor|nice[- ]to[- ]have|someday)\b/.test(text))
-    return 0.15;
-  return fallback;
 }
 
 export function keyOf(issue: GithubIssue): string {
