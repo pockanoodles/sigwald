@@ -7,8 +7,12 @@ import type { Db, DbTransaction } from "@/lib/prisma";
 import type { SearchGroup, SearchQuery } from "@/lib/search/types";
 import type { RankSignals } from "@/lib/sigwald/rank-stage1";
 
+import { pullAirtable } from "@/modules/airtable/pull";
 import { pullArxiv } from "@/modules/arxiv/pull";
+import { pullAsana } from "@/modules/asana/pull";
+import { pullBeehiiv } from "@/modules/beehiiv/pull";
 import { pullBluesky } from "@/modules/bluesky/pull";
+import { pullClickup } from "@/modules/clickup/pull";
 import { codeClaimKeys, codeClaimOptions } from "@/modules/code/facts";
 import { pullCodeforces } from "@/modules/codeforces/pull";
 import type { PullFn } from "@/modules/connect/pull";
@@ -26,28 +30,39 @@ import { pullDaylight } from "@/modules/daylight/pull";
 import { pullDeadlines } from "@/modules/deadlines/pull";
 import { pullFedreg } from "@/modules/fedreg/pull";
 import { pullFeeds } from "@/modules/feeds/pull";
+import { pullFigma } from "@/modules/figma/pull";
+import { pullGhost } from "@/modules/ghost/pull";
 import { pullGithub } from "@/modules/github/pull";
+import { pullGitlab } from "@/modules/gitlab/pull";
 import { pullHackernews } from "@/modules/hackernews/pull";
 import { pullHolidays } from "@/modules/holidays/pull";
 import { pullInbox } from "@/modules/inbox/pull";
+import { pullJira } from "@/modules/jira/pull";
 import { pullJobs } from "@/modules/jobs/pull";
+import { pullKit } from "@/modules/kit/pull";
 import { goalRankSignals, goalTaskFacts } from "@/modules/ladder/facts";
 import { searchGoals } from "@/modules/ladder/search";
 import { linkChangedTasksToGoals } from "@/modules/ladder/server";
 import { pullLinear } from "@/modules/linear/pull";
+import { pullNotion } from "@/modules/notion/pull";
+import { pullPagerduty } from "@/modules/pagerduty/pull";
 import { reconcileReachOuts } from "@/modules/people/reach-out";
 import { searchPeople } from "@/modules/people/search";
 import { pullScholar } from "@/modules/scholar/pull";
+import { pullSentry } from "@/modules/sentry/pull";
 import { pullSheet } from "@/modules/sheet/pull";
 import { pullStripe } from "@/modules/stripe/pull";
+import { pullTodoist } from "@/modules/todoist/pull";
 import {
   routineClaimKeys,
   routineClaimOptions,
 } from "@/modules/training/facts";
 import { searchRoutines } from "@/modules/training/search";
 import { reconcileWorkouts } from "@/modules/training/workout";
+import { pullTrello } from "@/modules/trello/pull";
 import type { ClaimOption, ModuleId, ProofItem } from "@/modules/types";
 import { pullWeather } from "@/modules/weather/pull";
+import { pullWordpress } from "@/modules/wordpress/pull";
 import { restoreShiftEvents } from "@/modules/work/feed";
 import { searchWork } from "@/modules/work/search";
 import { reconcileTimesheets } from "@/modules/work/timesheet";
@@ -184,4 +199,19 @@ export const SERVER_MODULES: Record<ModuleId, ServerContributions> = {
   codeforces: connectorServer("codeforces", pullCodeforces),
   bluesky: connectorServer("bluesky", pullBluesky),
   hackernews: connectorServer("hackernews", pullHackernews),
+  gitlab: connectorServer("gitlab", pullGitlab),
+  jira: connectorServer("jira", pullJira),
+  sentry: connectorServer("sentry", pullSentry),
+  pagerduty: connectorServer("pagerduty", pullPagerduty),
+  asana: connectorServer("asana", pullAsana),
+  clickup: connectorServer("clickup", pullClickup),
+  trello: connectorServer("trello", pullTrello),
+  todoist: connectorServer("todoist", pullTodoist),
+  notion: connectorServer("notion", pullNotion),
+  airtable: connectorServer("airtable", pullAirtable),
+  figma: connectorServer("figma", pullFigma),
+  ghost: connectorServer("ghost", pullGhost),
+  wordpress: connectorServer("wordpress", pullWordpress),
+  beehiiv: connectorServer("beehiiv", pullBeehiiv),
+  kit: connectorServer("kit", pullKit),
 };

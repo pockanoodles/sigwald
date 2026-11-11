@@ -174,6 +174,21 @@ export const CLIENT_MODULES: Record<ModuleId, ClientContributions> = {
   codeforces: connectorClient("codeforces"),
   bluesky: connectorClient("bluesky"),
   hackernews: connectorClient("hackernews"),
+  gitlab: connectorClient("gitlab"),
+  jira: connectorClient("jira"),
+  sentry: connectorClient("sentry"),
+  pagerduty: connectorClient("pagerduty"),
+  asana: connectorClient("asana"),
+  clickup: connectorClient("clickup"),
+  trello: connectorClient("trello"),
+  todoist: connectorClient("todoist"),
+  notion: connectorClient("notion"),
+  airtable: connectorClient("airtable"),
+  figma: connectorClient("figma"),
+  ghost: connectorClient("ghost"),
+  wordpress: connectorClient("wordpress"),
+  beehiiv: connectorClient("beehiiv"),
+  kit: connectorClient("kit"),
 };
 
 /**
