@@ -189,6 +189,11 @@ export const CLIENT_MODULES: Record<ModuleId, ClientContributions> = {
   wordpress: connectorClient("wordpress"),
   beehiiv: connectorClient("beehiiv"),
   kit: connectorClient("kit"),
+  harvest: connectorClient("harvest"),
+  toggl: connectorClient("toggl"),
+  clockify: connectorClient("clockify"),
+  ynab: connectorClient("ynab"),
+  lemonsqueezy: connectorClient("lemonsqueezy"),
 };
 
 /**

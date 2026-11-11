@@ -51,7 +51,12 @@ export type ModuleId =
   | "ghost"
   | "wordpress"
   | "beehiiv"
-  | "kit";
+  | "kit"
+  | "harvest"
+  | "toggl"
+  | "clockify"
+  | "ynab"
+  | "lemonsqueezy";
 
 /**
  * A shelf in the marketplace (/modules). Every module sits on exactly one;
