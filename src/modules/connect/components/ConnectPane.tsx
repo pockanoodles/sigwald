@@ -218,6 +218,18 @@ function AccountPart({
   const connection = state.connection;
   const showForm = editing || !connection;
 
+  /** What the form shows: what was typed, over the connection's own non-secret fields. */
+  const shown = (): Record<string, string> => {
+    const fields: Record<string, string> = {};
+    for (const field of service.fields) {
+      const kept =
+        field.kind === "secret" ? undefined : connection?.fields[field.key];
+      const value = values[field.key] ?? kept;
+      if (value !== undefined) fields[field.key] = value;
+    }
+    return fields;
+  };
+
   const connect = async () => {
     setBusy(true);
     setProblem(null);
@@ -225,7 +237,8 @@ function AccountPart({
       const res = await fetch(`/api/connect/connections/${service.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fields: values }),
+        // Replacing a token sends the site and email the form still shows.
+        body: JSON.stringify({ fields: shown() }),
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
@@ -317,12 +330,7 @@ function AccountPart({
                 autoComplete="off"
                 spellCheck={false}
                 placeholder={field.placeholder}
-                value={
-                  values[field.key] ??
-                  (field.kind === "secret"
-                    ? ""
-                    : (connection?.fields[field.key] ?? ""))
-                }
+                value={shown()[field.key] ?? ""}
                 onChange={(e) =>
                   setValues((v) => ({ ...v, [field.key]: e.target.value }))
                 }
@@ -386,9 +394,9 @@ function SettingsForm({
   const [draft, setDraft] = useState<Record<string, SettingValue | string>>({});
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  // Edits stay until they're saved: Read now and connecting reload the pane
+  // without touching them.
   const dirty = Object.keys(draft).length > 0;
-
-  useEffect(() => setDraft({}), [settings]);
 
   const value = (f: SettingField) =>
     f.key in draft ? draft[f.key] : settings[f.key];
@@ -410,6 +418,7 @@ function SettingsForm({
         return;
       }
       onSaved(body as ModuleConnectState);
+      setDraft({});
       toast.success("Saved. It reads again on its next pass.");
     } finally {
       setBusy(false);

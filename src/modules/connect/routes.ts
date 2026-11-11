@@ -340,8 +340,12 @@ async function moduleState(
   const next =
     spec.everyMinutes > 0
       ? new Date(
-          (sync?.lastPullAt?.getTime() ?? now.getTime()) +
-            (sync?.lastPullAt ? pullWait(spec, sync.failures) : 0)
+          Math.max(
+            (sync?.lastPullAt?.getTime() ?? now.getTime()) +
+              (sync?.lastPullAt ? pullWait(spec, sync.failures) : 0),
+            // Or later, when the service asked Sigwald to wait.
+            sync?.retryAt?.getTime() ?? 0
+          )
         )
       : null;
   return {

@@ -23,14 +23,16 @@
  */
 import { endOfDayIn } from "@/lib/date-utils";
 
-import type {
-  Claim,
-  Fact,
-  PullResult,
-  PulledEvent,
-  PulledItem,
-  PulledReading,
-  PulledTask,
+import {
+  type Claim,
+  type Fact,
+  type PullResult,
+  type PulledEvent,
+  type PulledItem,
+  type PulledReading,
+  type PulledTask,
+  isDueDay,
+  isDueMoment,
 } from "./pull";
 
 export interface HeldTask {
@@ -214,8 +216,15 @@ export function planPull(input: PlanInput): Plan {
     }
 
     const sourceDoneAt = pulled.kind === "task" ? pulled.doneAt : null;
+    // Done stays at the time first heard. A repeat (an Inbox item sent again,
+    // a closed issue listed again) never moves it: its task's finish would no
+    // longer match, and a reopen at the source couldn't undo the finish.
     const doneAt =
-      pulled.state === "done" ? (sourceDoneAt ?? h?.doneAt ?? now) : null;
+      pulled.state !== "done"
+        ? null
+        : h?.state === "done" && h.doneAt
+          ? h.doneAt
+          : (sourceDoneAt ?? h?.doneAt ?? now);
     const fields: ItemFields = {
       kind: pulled.kind,
       title: pulled.title,
@@ -453,7 +462,6 @@ const MAX_READINGS = 50;
 const MAX_FACTS = 12;
 const MAX_CLAIMS = 20;
 const MAX_EVENT_MS = 31 * 24 * 60 * 60 * 1000;
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const READING_KEY = /^[a-z0-9][a-z0-9_.-]{0,59}$/;
 const UNIT = /^[a-z]{1,12}$/;
 
@@ -533,15 +541,12 @@ function cleanItem(raw: PulledItem): PulledItem | null {
   }
   if (raw.kind !== "task") return null;
 
+  // A due that isn't a real day or a plausible moment is dropped, never
+  // turned into some other day.
   let due: PulledTask["due"] = null;
-  if (
-    raw.due &&
-    "date" in raw.due &&
-    typeof raw.due.date === "string" &&
-    DAY.test(raw.due.date)
-  ) {
+  if (raw.due && "date" in raw.due && isDueDay(raw.due.date)) {
     due = { date: raw.due.date };
-  } else if (raw.due && "at" in raw.due && validDate(raw.due.at)) {
+  } else if (raw.due && "at" in raw.due && isDueMoment(raw.due.at)) {
     due = { at: raw.due.at };
   }
   const groupKey = text(raw.group?.key, 200);

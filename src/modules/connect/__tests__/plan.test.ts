@@ -5,7 +5,12 @@ import {
   groupsOf,
   planPull,
 } from "@/modules/connect/plan";
-import type { PulledEvent, PulledTask } from "@/modules/connect/pull";
+import {
+  type PulledEvent,
+  type PulledTask,
+  dueAt,
+  dueDay,
+} from "@/modules/connect/pull";
 
 const now = new Date("2026-11-11T15:00:00.000Z");
 const earlier = new Date("2026-11-11T14:00:00.000Z");
@@ -378,6 +383,26 @@ describe("cleanResult", () => {
     expect(result.complete).toBe(true);
   });
 
+  it("drops a due that isn't a real day or a plausible time, never moving it to another", () => {
+    const result = cleanResult({
+      complete: true,
+      items: [
+        pulled("a", { due: { date: "2026-02-31" } }),
+        pulled("b", { due: { date: "0000-00-00" } }),
+        pulled("c", { due: { at: new Date(0) } }),
+        pulled("d", { due: { at: new Date("0001-01-01T00:00:00Z") } }),
+        pulled("e", { due: { date: "2028-02-29" } }),
+      ],
+    });
+    expect(result.items.map((i) => (i as PulledTask).due)).toEqual([
+      null,
+      null,
+      null,
+      null,
+      { date: "2028-02-29" },
+    ]);
+  });
+
   it("collects the groups and named claims a goal can claim", () => {
     const result = cleanResult({
       complete: true,
@@ -426,6 +451,33 @@ describe("planPull: a done report", () => {
       change: { status: "completed", completedAt: doneAt, closedAt: null },
     });
   });
+
+  it("stays at the time first heard when it comes again, so a reopen still undoes it", () => {
+    const first = new Date("2026-11-11T13:00:00.000Z");
+    const finished = held("a", {
+      state: "done",
+      doneAt: first,
+      task: heldTask({ id: "task-a", status: "completed", completedAt: first }),
+    });
+    // The same Inbox item sent again later, stamped with its own time.
+    expect(
+      plan([finished], [pulled("a", { state: "done", doneAt: now })]).writes
+    ).toEqual([]);
+    expect(plan([finished], [pulled("a")]).writes[0].task).toMatchObject({
+      change: { status: "todo", completedAt: null },
+    });
+  });
+});
+
+describe("due helpers", () => {
+  it("take a real day or moment, and nothing a service means as none", () => {
+    expect(dueDay("2026-11-20T10:00:00Z")).toEqual({ date: "2026-11-20" });
+    expect(dueDay("2026-02-31")).toBeNull();
+    expect(dueDay("0000-00-00 00:00:00")).toBeNull();
+    expect(dueAt(1_763_000_000)).toEqual({ at: new Date(1_763_000_000_000) });
+    expect(dueAt(0)).toBeNull();
+    expect(dueAt("0001-01-01T00:00:00Z")).toBeNull();
+  });
 });
 
 describe("planPull: an item said to be gone", () => {
@@ -448,6 +500,9 @@ describe("planPull: an item said to be gone", () => {
   });
 
   it("ignores one Sigwald never held", () => {
-    expect(plan([], [{ kind: "task", externalId: "z", title: "Z", state: "gone" }]).writes).toEqual([]);
+    expect(
+      plan([], [{ kind: "task", externalId: "z", title: "Z", state: "gone" }])
+        .writes
+    ).toEqual([]);
   });
 });

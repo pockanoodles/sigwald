@@ -1,7 +1,7 @@
 import type { ServiceManifest } from "@/lib/connectors/types";
 
 import { parseConnectFields } from "@/modules/connect/fields";
-import { isPullDue, pullWait } from "@/modules/connect/run";
+import { askedWait, isPullDue, pullWait } from "@/modules/connect/run";
 import type { ConnectSpec } from "@/modules/connect/spec";
 
 const jira: ServiceManifest = {
@@ -85,6 +85,16 @@ describe("pull timing", () => {
     expect(isPullDue(spec, { lastPullAt: ago(100), failures: 3 }, now)).toBe(
       false
     );
+  });
+
+  it("waits as long as the service asked, even past its own backoff", () => {
+    const retryAt = new Date(now.getTime() + 50 * 60_000);
+    const limited = { lastPullAt: ago(100), failures: 1, retryAt };
+    expect(isPullDue(spec, limited, now)).toBe(false);
+    expect(askedWait(limited, now)).toBe(50);
+    const later = new Date(retryAt.getTime() + 1);
+    expect(isPullDue(spec, limited, later)).toBe(true);
+    expect(askedWait(limited, later)).toBe(0);
   });
 
   it("never pulls a module that's sent things instead", () => {

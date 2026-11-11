@@ -20,7 +20,7 @@
  */
 import { createHash } from "node:crypto";
 
-import type { PulledItem } from "@/modules/connect/pull";
+import { type PulledItem, isDueDay, isDueMoment } from "@/modules/connect/pull";
 
 export const MAX_ITEMS = 50;
 export const MAX_BODY_BYTES = 64 * 1024;
@@ -46,8 +46,11 @@ function str(v: unknown): string | null {
 function moment(v: unknown, where: string): Date | string {
   if (typeof v !== "string" || !MOMENT.test(v))
     return `${where} must be a time with its offset, like 2026-11-20T15:00:00-05:00`;
+  // A Date would quietly make 2026-02-31 March 3: the day must be real first.
   const at = new Date(v);
-  return Number.isNaN(at.getTime()) ? `${where} isn't a real time` : at;
+  return isDueDay(v.slice(0, 10)) && isDueMoment(at)
+    ? at
+    : `${where} isn't a real time`;
 }
 
 function slug(text: string): string {
@@ -127,9 +130,10 @@ function parseOne(raw: unknown, where: string, now: Date): PulledItem | string {
 
   let due: { date: string } | { at: Date } | null = null;
   if (raw.due !== undefined && raw.due !== null) {
-    if (typeof raw.due === "string" && DAY.test(raw.due))
+    if (typeof raw.due === "string" && DAY.test(raw.due)) {
+      if (!isDueDay(raw.due)) return `${where}.due isn't a real day`;
       due = { date: raw.due };
-    else {
+    } else {
       const at = moment(raw.due, `${where}.due`);
       if (typeof at === "string")
         return `${where}.due must be a day (2026-11-20) or a time with its offset`;
