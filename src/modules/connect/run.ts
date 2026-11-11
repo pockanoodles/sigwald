@@ -28,7 +28,7 @@ import { userTimeZone } from "@/lib/user-time-zone";
 import { moduleById } from "@/modules";
 import type { ModuleId } from "@/modules/types";
 
-import { type PlanCounts, cleanResult, groupsOf } from "./plan";
+import { type PlanCounts, cleanResult } from "./plan";
 import type { PullFn } from "./pull";
 import { missingSettings, resolveSettings } from "./settings";
 import { type ConnectSpec, DEFAULT_MAX_OPEN } from "./spec";
@@ -38,6 +38,8 @@ const LOG_SOURCE = "ConnectorPull";
 /** One pull gets this long, all its requests together. */
 const PULL_DEADLINE_MS = 120_000;
 const MAX_BACKOFF_MS = 12 * 60 * 60 * 1000;
+/** A claim this old belongs to a pull that died: past its deadline, with room to write. */
+const LEASE_MS = PULL_DEADLINE_MS + 60_000;
 
 export interface PullOutcome {
   /** False when it wasn't due (or never pulls). */
@@ -129,14 +131,66 @@ export async function runPull(
   pull: PullFn,
   options: { force?: boolean; now?: Date } = {}
 ): Promise<PullOutcome> {
-  const manifest = moduleById(moduleId);
   const spec = specOf(moduleId);
   const now = options.now ?? newDate();
-  const sync = await prisma.moduleSync.findUnique({
+  const before = await prisma.moduleSync.findUnique({
     where: { userId_moduleId: { userId, moduleId } },
   });
-  if (!options.force && !isPullDue(spec, sync, now)) return { ran: false };
+  if (!options.force && !isPullDue(spec, before, now)) return { ran: false };
 
+  // One pull per module at a time, from fetch to write: an older answer
+  // written after a newer one would reopen what the newer one finished.
+  if (!(await claim(userId, moduleId, now))) {
+    return { ran: false, problem: "It's reading now. Try again in a moment." };
+  }
+  try {
+    const sync = await prisma.moduleSync.findUnique({
+      where: { userId_moduleId: { userId, moduleId } },
+    });
+    if (!options.force && !isPullDue(spec, sync, now)) return { ran: false };
+    return await pullClaimed(userId, moduleId, pull, spec, sync, now);
+  } finally {
+    await prisma.moduleSync.updateMany({
+      where: { userId, moduleId, pullingSince: now },
+      data: { pullingSince: null },
+    });
+  }
+}
+
+/** Takes the module for one pull, unless another holds it (and hasn't outlived its lease). */
+async function claim(
+  userId: string,
+  moduleId: ModuleId,
+  now: Date
+): Promise<boolean> {
+  await prisma.moduleSync.upsert({
+    where: { userId_moduleId: { userId, moduleId } },
+    create: { userId, moduleId },
+    update: {},
+  });
+  const taken = await prisma.moduleSync.updateMany({
+    where: {
+      userId,
+      moduleId,
+      OR: [
+        { pullingSince: null },
+        { pullingSince: { lt: new Date(now.getTime() - LEASE_MS) } },
+      ],
+    },
+    data: { pullingSince: now },
+  });
+  return taken.count === 1;
+}
+
+async function pullClaimed(
+  userId: string,
+  moduleId: ModuleId,
+  pull: PullFn,
+  spec: ConnectSpec,
+  sync: Awaited<ReturnType<typeof prisma.moduleSync.findUnique>>,
+  now: Date
+): Promise<PullOutcome> {
+  const manifest = moduleById(moduleId);
   const service = spec.service;
   const name = service?.name ?? manifest.name;
   const blocked = async (problem: string): Promise<PullOutcome> => {
@@ -207,18 +261,11 @@ export async function runPull(
       timeZone,
       maxOpen,
     });
-    const groups = {
-      ...(sync?.groups && typeof sync.groups === "object"
-        ? (sync.groups as Record<string, string>)
-        : {}),
-      ...groupsOf(result),
-    };
     await record(userId, moduleId, {
       lastPullAt: now,
       lastSuccessAt: now,
       failures: 0,
       error: null,
-      groups,
       cursor: (result.cursor ?? null) as Prisma.InputJsonValue,
     });
     logger.info(

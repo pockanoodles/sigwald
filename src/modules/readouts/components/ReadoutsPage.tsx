@@ -26,7 +26,8 @@ import type { Readout } from "@/modules/readouts/series";
 
 import { useResource } from "@/hooks/use-resource";
 
-const idOf = (r: Pick<Readout, "module" | "key">) => `${r.module}.${r.key}`;
+const idOf = (r: Pick<Readout, "module" | "key" | "unit">) =>
+  `${r.module}.${r.key}.${r.unit}`;
 
 function moduleName(id: string): string {
   return isModuleId(id) ? moduleById(id).name : id;

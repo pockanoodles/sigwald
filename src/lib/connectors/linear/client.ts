@@ -132,29 +132,46 @@ export async function assignedOpenIssues(
   return { issues, complete: false };
 }
 
-/** Issues assigned to the key's owner that were completed since `since`. */
+/**
+ * Issues assigned to the key's owner that were completed since `since`, up
+ * to `pages` of 100. `complete` is false when there were more: then the
+ * caller can't tell a finished issue from a gone one, and mustn't try.
+ */
 export async function assignedCompletedSince(
   http: Http,
   secret: Readonly<Record<string, string>>,
-  since: Date
-): Promise<{ id: string; completedAt: string }[]> {
-  const data = await linearQuery<{
-    viewer: {
-      assignedIssues: { nodes: { id: string; completedAt: string | null }[] };
-    };
-  }>(
-    http,
-    secret,
-    `query Finished($since: DateTimeOrDuration!) {
-      viewer {
-        assignedIssues(first: 100, filter: { completedAt: { gte: $since } }) {
-          nodes { id completedAt }
+  since: Date,
+  pages = 3
+): Promise<{ done: { id: string; completedAt: string }[]; complete: boolean }> {
+  const done: { id: string; completedAt: string }[] = [];
+  let after: string | null = null;
+  for (let page = 0; page < pages; page++) {
+    const data: {
+      viewer: {
+        assignedIssues: {
+          nodes: { id: string; completedAt: string | null }[];
+          pageInfo: { hasNextPage: boolean; endCursor: string | null };
+        };
+      };
+    } = await linearQuery(
+      http,
+      secret,
+      `query Finished($since: DateTimeOrDuration!, $after: String) {
+        viewer {
+          assignedIssues(first: 100, after: $after, filter: { completedAt: { gte: $since } }) {
+            nodes { id completedAt }
+            pageInfo { hasNextPage endCursor }
+          }
         }
-      }
-    }`,
-    { since: since.toISOString() }
-  );
-  return data.viewer.assignedIssues.nodes.flatMap((n) =>
-    n.completedAt ? [{ id: n.id, completedAt: n.completedAt }] : []
-  );
+      }`,
+      { since: since.toISOString(), after }
+    );
+    const connection = data.viewer.assignedIssues;
+    for (const n of connection.nodes) {
+      if (n.completedAt) done.push({ id: n.id, completedAt: n.completedAt });
+    }
+    if (!connection.pageInfo.hasNextPage) return { done, complete: true };
+    after = connection.pageInfo.endCursor;
+  }
+  return { done, complete: false };
 }

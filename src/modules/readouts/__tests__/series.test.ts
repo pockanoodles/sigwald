@@ -65,3 +65,19 @@ describe("buildReadouts", () => {
     ]);
   });
 });
+
+describe("a number whose unit changes", () => {
+  it("starts a new series instead of subtracting one currency from another", () => {
+    const readouts = buildReadouts(
+      [
+        { ...row("stripe", "mrr", "2026-11-01", 100), unit: "usd" },
+        { ...row("stripe", "mrr", "2026-11-11", 90), unit: "eur" },
+      ],
+      ["stripe"]
+    );
+    expect(readouts.map((r) => [r.unit, r.value, r.change.day7])).toEqual([
+      ["usd", 100, null],
+      ["eur", 90, null],
+    ]);
+  });
+});
