@@ -70,7 +70,9 @@ export const pullDeadlines: PullFn = async ({ http, settings, now }) => {
       if (only && !e.title.toLowerCase().includes(only)) continue;
       items.push({
         kind: "task",
-        externalId: `${key}:${e.externalEventId ?? e.title}@${e.start.toISOString()}`,
+        // The parser keys each occurrence by its series and original time
+        // (uid_<start>), so a moved deadline stays the same task.
+        externalId: `${key}:${e.externalEventId ?? `${e.title}@${e.start.toISOString()}`}`,
         title: e.title,
         state: "open",
         url: null,

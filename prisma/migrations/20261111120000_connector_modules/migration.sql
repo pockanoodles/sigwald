@@ -28,6 +28,7 @@ CREATE TABLE "ModuleSync" (
     "feedId" TEXT,
     "lastPullAt" TIMESTAMP(3),
     "lastSuccessAt" TIMESTAMP(3),
+    "pullingSince" TIMESTAMP(3),
     "failures" INTEGER NOT NULL DEFAULT 0,
     "error" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

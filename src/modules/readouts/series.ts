@@ -33,7 +33,13 @@ function dayMinus(day: string, n: number): string {
   return new Date(Date.UTC(y, m - 1, d - n)).toISOString().slice(0, 10);
 }
 
-const idOf = (r: { module: string; key: string }) => `${r.module}|${r.key}`;
+/**
+ * A series is one module's key in one unit: a number whose unit changes
+ * (Stripe switched from usd to eur) starts a new series rather than
+ * subtracting euros from dollars.
+ */
+const idOf = (r: { module: string; key: string; unit: string }) =>
+  `${r.module}|${r.key}|${r.unit}`;
 
 /** One readout per module and key, in the order `moduleOrder` gives the modules. */
 export function buildReadouts(

@@ -17,6 +17,7 @@ import {
   type HeldItem,
   type ItemWrite,
   type PlanCounts,
+  groupsOf,
   planPull,
 } from "./plan";
 import type { PullResult, PulledReading } from "./pull";
@@ -258,6 +259,37 @@ async function writeReadings(
 }
 
 /**
+ * Adds the claim groups the answer named (a repo, an Inbox list) to the ones
+ * the module has named before, for the goal form. Whether a pull or the
+ * Inbox wrote it, it lands here.
+ */
+async function writeGroups(
+  tx: DbTransaction,
+  userId: string,
+  moduleId: ModuleId,
+  named: Record<string, string>
+): Promise<void> {
+  if (Object.keys(named).length === 0) return;
+  const sync = await tx.moduleSync.findUnique({
+    where: { userId_moduleId: { userId, moduleId } },
+    select: { groups: true },
+  });
+  const had =
+    sync?.groups &&
+    typeof sync.groups === "object" &&
+    !Array.isArray(sync.groups)
+      ? (sync.groups as Record<string, string>)
+      : {};
+  const groups = { ...had, ...named };
+  if (JSON.stringify(groups) === JSON.stringify(had)) return;
+  await tx.moduleSync.upsert({
+    where: { userId_moduleId: { userId, moduleId } },
+    create: { userId, moduleId, groups },
+    update: { groups },
+  });
+}
+
+/**
  * Writes what a pull saw: plans it against what's held (src/modules/connect/plan.ts)
  * and writes the plan, then tells the goal rules which tasks changed.
  * `result` must already be cleaned (`cleanResult`).
@@ -300,6 +332,7 @@ export async function applyPull(
         if (taskId) changed.push(taskId);
       }
       await writeReadings(tx, userId, moduleId, result.readings, now, timeZone);
+      await writeGroups(tx, userId, moduleId, groupsOf(result));
       await tx.moduleItem.deleteMany({
         where: {
           userId,

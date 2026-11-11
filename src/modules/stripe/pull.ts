@@ -110,12 +110,14 @@ export const pullStripe: PullFn = async ({ http, secret, settings, now }) => {
       .flatMap((s) => s.items.data)
       .filter((item) => item.price.currency === currency)
       .reduce((t, item) => t + monthly(item), 0);
-    readings.push({
-      key: "mrr",
-      label: "MRR",
-      value: Math.round(fromMinor(total, currency) * 100) / 100,
-      unit: currency,
-    });
+    // A sum of the first thousand subscriptions isn't MRR: leave it out.
+    if (subs.complete)
+      readings.push({
+        key: "mrr",
+        label: "MRR",
+        value: Math.round(fromMinor(total, currency) * 100) / 100,
+        unit: currency,
+      });
   }
 
   if (setting.on(settings, "volume")) {
@@ -132,12 +134,13 @@ export const pullStripe: PullFn = async ({ http, secret, settings, now }) => {
     const total = charges.data
       .filter((c) => c.currency === currency)
       .reduce((t, c) => t + c.amount, 0);
-    readings.push({
-      key: "charges30",
-      label: "Charges, 30 days",
-      value: fromMinor(total, currency),
-      unit: currency,
-    });
+    if (charges.complete)
+      readings.push({
+        key: "charges30",
+        label: "Charges, 30 days",
+        value: fromMinor(total, currency),
+        unit: currency,
+      });
   }
 
   if (setting.on(settings, "disputes")) {

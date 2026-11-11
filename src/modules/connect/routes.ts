@@ -320,8 +320,12 @@ async function moduleState(
   const latest = new Map<string, ReadingView>();
   for (const r of readings) {
     if (latest.has(r.key)) continue;
+    // Only a reading in the same unit compares: a currency change starts over.
     const weekAgo = readings.find(
-      (o) => o.key === r.key && r.day.getTime() - o.day.getTime() >= WEEK_MS
+      (o) =>
+        o.key === r.key &&
+        o.unit === r.unit &&
+        r.day.getTime() - o.day.getTime() >= WEEK_MS
     );
     latest.set(r.key, {
       key: r.key,

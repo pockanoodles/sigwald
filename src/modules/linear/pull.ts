@@ -73,7 +73,9 @@ export const pullLinear: PullFn = async (ctx) => {
   const teams = setting.list(settings, "teams").map((t) => t.toUpperCase());
   const cycleDue = setting.on(settings, "cycleDue");
 
-  const { issues, complete } = await assignedOpenIssues(http, secret);
+  const open_ = await assignedOpenIssues(http, secret);
+  const { issues } = open_;
+  let complete = open_.complete;
   const open = issues
     .filter(
       (i) => teams.length === 0 || teams.includes(i.team.key.toUpperCase())
@@ -92,7 +94,9 @@ export const pullLinear: PullFn = async (ctx) => {
       (ctx.lastSuccessAt?.getTime() ?? now.getTime() - FIRST_LOOKBACK_MS) -
         86_400_000
     );
-    for (const done of await assignedCompletedSince(http, secret, since)) {
+    const finishedSince = await assignedCompletedSince(http, secret, since);
+    if (!finishedSince.complete) complete = false;
+    for (const done of finishedSince.done) {
       const title = missing.get(done.id);
       if (title === undefined) continue;
       finished.push({

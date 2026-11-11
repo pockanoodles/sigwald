@@ -115,3 +115,32 @@ describe("pullDeadlines", () => {
     expect(result.complete).toBe(false);
   });
 });
+
+describe("a deadline that moves", () => {
+  it("stays the same task", async () => {
+    const one = (start: string) =>
+      [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Test//EN",
+        "BEGIN:VEVENT",
+        "UID:essay-9",
+        "DTSTAMP:20261101T000000Z",
+        `DTSTART:${start}`,
+        `DTEND:${start}`,
+        "SUMMARY:Essay due",
+        "END:VEVENT",
+        "END:VCALENDAR",
+      ].join("\r\n");
+    const idAt = async (start: string) => {
+      const { http } = fakeServiceHttp(WEB, [
+        { url: "https://x.io/a.ics", text: one(start) },
+      ]);
+      const result = await pullDeadlines(
+        ctx(http, { links: ["https://x.io/a.ics"] })
+      );
+      return result.items[0].externalId;
+    };
+    expect(await idAt("20261120T045900Z")).toBe(await idAt("20261122T045900Z"));
+  });
+});

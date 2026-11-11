@@ -1,4 +1,3 @@
-import { maxOpenField } from "@/modules/connect/spec";
 import type { ModuleManifest } from "@/modules/types";
 
 const inbox: ModuleManifest = {
@@ -30,7 +29,9 @@ const inbox: ModuleManifest = {
     receives: true,
     makes: ["tasks", "events"],
     everyMinutes: 0,
-    settings: [maxOpenField(100)],
+    // What's sent is asked for by name, so none of it waits for room; the
+    // address takes no more once 500 things sent to it are still open.
+    settings: [],
   },
 };
 

@@ -20,10 +20,8 @@ import { prisma } from "@/lib/prisma";
 import { publicUrl } from "@/lib/public-url";
 import { userTimeZone } from "@/lib/user-time-zone";
 
-import { moduleById } from "@/modules";
 import { moduleOffResponse } from "@/modules/api";
 import { cleanResult } from "@/modules/connect/plan";
-import { resolveSettings } from "@/modules/connect/settings";
 import { applyPull } from "@/modules/connect/store";
 import { MAX_BODY_BYTES, parseInbox } from "@/modules/inbox/receive";
 
@@ -152,11 +150,36 @@ export async function receive(
     if ("problem" in parsed)
       return NextResponse.json({ error: parsed.problem }, { status: 400 });
 
-    const open = await prisma.moduleItem.count({
-      where: { userId: link.userId, moduleId: MODULE, state: "open" },
+    // What's still asked of the person: open here and not yet done by hand
+    // (or, for a time, not yet over). A retry or an update of something
+    // already sent adds nothing.
+    const active = await prisma.moduleItem.count({
+      where: {
+        userId: link.userId,
+        moduleId: MODULE,
+        state: "open",
+        OR: [
+          { task: { status: { not: "completed" }, closedAt: null } },
+          { event: { end: { gte: now } } },
+        ],
+      },
     });
-    const adding = parsed.items.filter((i) => i.state === "open").length;
-    if (open + adding > MAX_OPEN_ITEMS) {
+    const known = new Set(
+      (
+        await prisma.moduleItem.findMany({
+          where: {
+            userId: link.userId,
+            moduleId: MODULE,
+            externalId: { in: parsed.items.map((i) => i.externalId) },
+          },
+          select: { externalId: true },
+        })
+      ).map((i) => i.externalId)
+    );
+    const adding = parsed.items.filter(
+      (i) => i.state === "open" && !known.has(i.externalId)
+    ).length;
+    if (active + adding > MAX_OPEN_ITEMS) {
       return NextResponse.json(
         {
           error: `The Inbox holds ${open} open items; finish some before sending more`,
@@ -165,14 +188,6 @@ export async function receive(
       );
     }
 
-    const sync = await prisma.moduleSync.findUnique({
-      where: { userId_moduleId: { userId: link.userId, moduleId: MODULE } },
-      select: { settings: true },
-    });
-    const settings = resolveSettings(
-      moduleById(MODULE).connect!.settings,
-      sync?.settings
-    );
     const applied = await applyPull(
       link.userId,
       MODULE,
@@ -180,7 +195,8 @@ export async function receive(
       {
         now,
         timeZone: await userTimeZone(prisma, link.userId),
-        maxOpen: typeof settings.maxOpen === "number" ? settings.maxOpen : 100,
+        // Nothing sent waits for room: the admission check above bounds it.
+        maxOpen: Number.MAX_SAFE_INTEGER,
       }
     );
     if (

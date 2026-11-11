@@ -154,6 +154,7 @@ describe("pullLinear", () => {
             viewer: {
               assignedIssues: {
                 nodes: [{ id: "9", completedAt: "2026-11-11T09:00:00.000Z" }],
+                pageInfo: { hasNextPage: false, endCursor: null },
               },
             },
           },
@@ -189,5 +190,46 @@ describe("impactOfPriority", () => {
       0.4,
       0.15,
     ]);
+  });
+});
+
+describe("pullLinear and a long run of completions", () => {
+  it("won't call anything gone when it couldn't read every completion", async () => {
+    const page = (n: number, hasNextPage: boolean) => ({
+      data: {
+        viewer: {
+          assignedIssues: {
+            nodes: [
+              { id: `done-${n}`, completedAt: "2026-11-11T09:00:00.000Z" },
+            ],
+            pageInfo: { hasNextPage, endCursor: hasNextPage ? `c${n}` : null },
+          },
+        },
+      },
+    });
+    const { http } = fakeServiceHttp(LINEAR, [
+      {
+        method: "POST",
+        url: API,
+        body: /Assigned/,
+        json: {
+          data: {
+            viewer: {
+              assignedIssues: {
+                nodes: [],
+                pageInfo: { hasNextPage: false, endCursor: null },
+              },
+            },
+          },
+        },
+      },
+      { method: "POST", url: API, body: /"after":"c2"/, json: page(3, true) },
+      { method: "POST", url: API, body: /"after":"c1"/, json: page(2, true) },
+      { method: "POST", url: API, body: /Finished/, json: page(1, true) },
+    ]);
+    const result = await pullLinear(
+      ctx(http, { open: [{ externalId: "held", kind: "task", title: "Held" }] })
+    );
+    expect(result.complete).toBe(false);
   });
 });
