@@ -124,6 +124,17 @@ const OWNED: Record<string, string[]> = {
   clockify: ["src/modules/clockify/"],
   ynab: ["src/modules/ynab/"],
   lemonsqueezy: ["src/modules/lemonsqueezy/"],
+  hubspot: ["src/modules/hubspot/"],
+  pipedrive: ["src/modules/pipedrive/"],
+  calendly: ["src/modules/calendly/"],
+  calcom: ["src/modules/calcom/"],
+  zendesk: ["src/modules/zendesk/"],
+  youtube: ["src/modules/youtube/"],
+  transistor: ["src/modules/transistor/"],
+  patreon: ["src/modules/patreon/"],
+  unsplash: ["src/modules/unsplash/"],
+  zotero: ["src/modules/zotero/"],
+  readwise: ["src/modules/readwise/"],
 };
 
 const REGISTRIES = new Set([

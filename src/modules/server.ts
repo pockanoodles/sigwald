@@ -12,6 +12,8 @@ import { pullArxiv } from "@/modules/arxiv/pull";
 import { pullAsana } from "@/modules/asana/pull";
 import { pullBeehiiv } from "@/modules/beehiiv/pull";
 import { pullBluesky } from "@/modules/bluesky/pull";
+import { pullCalcom } from "@/modules/calcom/pull";
+import { pullCalendly } from "@/modules/calendly/pull";
 import { pullClickup } from "@/modules/clickup/pull";
 import { pullClockify } from "@/modules/clockify/pull";
 import { codeClaimKeys, codeClaimOptions } from "@/modules/code/facts";
@@ -38,6 +40,7 @@ import { pullGitlab } from "@/modules/gitlab/pull";
 import { pullHackernews } from "@/modules/hackernews/pull";
 import { pullHarvest } from "@/modules/harvest/pull";
 import { pullHolidays } from "@/modules/holidays/pull";
+import { pullHubspot } from "@/modules/hubspot/pull";
 import { pullInbox } from "@/modules/inbox/pull";
 import { pullJira } from "@/modules/jira/pull";
 import { pullJobs } from "@/modules/jobs/pull";
@@ -49,8 +52,11 @@ import { pullLemonSqueezy } from "@/modules/lemonsqueezy/pull";
 import { pullLinear } from "@/modules/linear/pull";
 import { pullNotion } from "@/modules/notion/pull";
 import { pullPagerduty } from "@/modules/pagerduty/pull";
+import { pullPatreon } from "@/modules/patreon/pull";
 import { reconcileReachOuts } from "@/modules/people/reach-out";
 import { searchPeople } from "@/modules/people/search";
+import { pullPipedrive } from "@/modules/pipedrive/pull";
+import { pullReadwise } from "@/modules/readwise/pull";
 import { pullScholar } from "@/modules/scholar/pull";
 import { pullSentry } from "@/modules/sentry/pull";
 import { pullSheet } from "@/modules/sheet/pull";
@@ -63,14 +69,19 @@ import {
 } from "@/modules/training/facts";
 import { searchRoutines } from "@/modules/training/search";
 import { reconcileWorkouts } from "@/modules/training/workout";
+import { pullTransistor } from "@/modules/transistor/pull";
 import { pullTrello } from "@/modules/trello/pull";
 import type { ClaimOption, ModuleId, ProofItem } from "@/modules/types";
+import { pullUnsplash } from "@/modules/unsplash/pull";
 import { pullWeather } from "@/modules/weather/pull";
 import { pullWordpress } from "@/modules/wordpress/pull";
 import { restoreShiftEvents } from "@/modules/work/feed";
 import { searchWork } from "@/modules/work/search";
 import { reconcileTimesheets } from "@/modules/work/timesheet";
 import { pullYnab } from "@/modules/ynab/pull";
+import { pullYoutube } from "@/modules/youtube/pull";
+import { pullZendesk } from "@/modules/zendesk/pull";
+import { pullZotero } from "@/modules/zotero/pull";
 
 export interface ModuleJob {
   /** Names it in logs. */
@@ -224,4 +235,15 @@ export const SERVER_MODULES: Record<ModuleId, ServerContributions> = {
   clockify: connectorServer("clockify", pullClockify),
   ynab: connectorServer("ynab", pullYnab),
   lemonsqueezy: connectorServer("lemonsqueezy", pullLemonSqueezy),
+  hubspot: connectorServer("hubspot", pullHubspot),
+  pipedrive: connectorServer("pipedrive", pullPipedrive),
+  calendly: connectorServer("calendly", pullCalendly),
+  calcom: connectorServer("calcom", pullCalcom),
+  zendesk: connectorServer("zendesk", pullZendesk),
+  youtube: connectorServer("youtube", pullYoutube),
+  transistor: connectorServer("transistor", pullTransistor),
+  patreon: connectorServer("patreon", pullPatreon),
+  unsplash: connectorServer("unsplash", pullUnsplash),
+  zotero: connectorServer("zotero", pullZotero),
+  readwise: connectorServer("readwise", pullReadwise),
 };

@@ -3,6 +3,8 @@ import arxiv from "@/modules/arxiv/manifest";
 import asana from "@/modules/asana/manifest";
 import beehiiv from "@/modules/beehiiv/manifest";
 import bluesky from "@/modules/bluesky/manifest";
+import calcom from "@/modules/calcom/manifest";
+import calendly from "@/modules/calendly/manifest";
 import clickup from "@/modules/clickup/manifest";
 import clockify from "@/modules/clockify/manifest";
 import code from "@/modules/code/manifest";
@@ -19,6 +21,7 @@ import gitlab from "@/modules/gitlab/manifest";
 import hackernews from "@/modules/hackernews/manifest";
 import harvest from "@/modules/harvest/manifest";
 import holidays from "@/modules/holidays/manifest";
+import hubspot from "@/modules/hubspot/manifest";
 import inbox from "@/modules/inbox/manifest";
 import jira from "@/modules/jira/manifest";
 import jobs from "@/modules/jobs/manifest";
@@ -29,8 +32,11 @@ import linear from "@/modules/linear/manifest";
 import notion from "@/modules/notion/manifest";
 import nutrition from "@/modules/nutrition/manifest";
 import pagerduty from "@/modules/pagerduty/manifest";
+import patreon from "@/modules/patreon/manifest";
 import people from "@/modules/people/manifest";
+import pipedrive from "@/modules/pipedrive/manifest";
 import readouts from "@/modules/readouts/manifest";
+import readwise from "@/modules/readwise/manifest";
 import scholar from "@/modules/scholar/manifest";
 import sentry from "@/modules/sentry/manifest";
 import sheet from "@/modules/sheet/manifest";
@@ -38,6 +44,7 @@ import stripe from "@/modules/stripe/manifest";
 import todoist from "@/modules/todoist/manifest";
 import toggl from "@/modules/toggl/manifest";
 import training from "@/modules/training/manifest";
+import transistor from "@/modules/transistor/manifest";
 import trello from "@/modules/trello/manifest";
 import type {
   ClaimOption,
@@ -45,10 +52,14 @@ import type {
   ModuleManifest,
   ModuleState,
 } from "@/modules/types";
+import unsplash from "@/modules/unsplash/manifest";
 import weather from "@/modules/weather/manifest";
 import wordpress from "@/modules/wordpress/manifest";
 import work from "@/modules/work/manifest";
 import ynab from "@/modules/ynab/manifest";
+import youtube from "@/modules/youtube/manifest";
+import zendesk from "@/modules/zendesk/manifest";
+import zotero from "@/modules/zotero/manifest";
 
 /**
  * Every module this build ships, in catalog order: finished modules first,
@@ -78,16 +89,27 @@ export const MODULES: readonly ModuleManifest[] = [
   notion,
   airtable,
   figma,
+  youtube,
+  transistor,
+  patreon,
+  unsplash,
   bluesky,
   hackernews,
   ghost,
   wordpress,
   beehiiv,
   kit,
+  zotero,
+  readwise,
   arxiv,
   feeds,
   scholar,
   fedreg,
+  hubspot,
+  pipedrive,
+  calendly,
+  calcom,
+  zendesk,
   stripe,
   lemonsqueezy,
   harvest,

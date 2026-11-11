@@ -6,6 +6,8 @@
 import { verifyAirtable } from "./airtable/client";
 import { verifyAsana } from "./asana/client";
 import { verifyBeehiiv } from "./beehiiv/client";
+import { verifyCalcom } from "./calcom/client";
+import { verifyCalendly } from "./calendly/client";
 import { verifyClickup } from "./clickup/client";
 import { verifyClockify } from "./clockify/client";
 import { verifyFigma } from "./figma/client";
@@ -13,20 +15,29 @@ import { verifyGhost } from "./ghost/client";
 import { verifyGithub } from "./github/client";
 import { verifyGitlab } from "./gitlab/client";
 import { verifyHarvest } from "./harvest/client";
+import { verifyHubspot } from "./hubspot/client";
 import { verifyJira } from "./jira/client";
 import { verifyKit } from "./kit/client";
 import { verifyLemonSqueezy } from "./lemonsqueezy/client";
 import { verifyLinear } from "./linear/client";
 import { verifyNotion } from "./notion/client";
 import { verifyPagerduty } from "./pagerduty/client";
+import { verifyPatreon } from "./patreon/client";
+import { verifyPipedrive } from "./pipedrive/client";
+import { verifyReadwise } from "./readwise/client";
 import { verifySentry } from "./sentry/client";
 import { verifyStripe } from "./stripe/client";
 import { verifyTodoist } from "./todoist/client";
 import { verifyToggl } from "./toggl/client";
+import { verifyTransistor } from "./transistor/client";
 import { verifyTrello } from "./trello/client";
 import type { VerifyFn } from "./types";
+import { verifyUnsplash } from "./unsplash/client";
 import { verifyWordpress } from "./wordpress/client";
 import { verifyYnab } from "./ynab/client";
+import { verifyYoutube } from "./youtube/client";
+import { verifyZendesk } from "./zendesk/client";
+import { verifyZotero } from "./zotero/client";
 
 export const VERIFIERS: Record<string, VerifyFn> = {
   github: verifyGithub,
@@ -52,4 +63,15 @@ export const VERIFIERS: Record<string, VerifyFn> = {
   clockify: verifyClockify,
   ynab: verifyYnab,
   lemonsqueezy: verifyLemonSqueezy,
+  hubspot: verifyHubspot,
+  pipedrive: verifyPipedrive,
+  calendly: verifyCalendly,
+  calcom: verifyCalcom,
+  zendesk: verifyZendesk,
+  youtube: verifyYoutube,
+  transistor: verifyTransistor,
+  patreon: verifyPatreon,
+  unsplash: verifyUnsplash,
+  zotero: verifyZotero,
+  readwise: verifyReadwise,
 };

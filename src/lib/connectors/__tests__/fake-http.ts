@@ -49,9 +49,14 @@ export function fakeHttp(
         (!r.body || (body !== null && r.body.test(body)))
     );
     if (!route) throw new Error(`No route for ${method} ${input}`);
-    const text = route.text ?? JSON.stringify(route.json ?? null);
+    const status = route.status ?? 200;
+    // A 204, 205 or 304 carries no body; Node refuses a Response with one.
+    const empty = status === 204 || status === 205 || status === 304;
+    const text = empty
+      ? null
+      : (route.text ?? JSON.stringify(route.json ?? null));
     return new Response(text, {
-      status: route.status ?? 200,
+      status,
       headers: route.headers ?? { "content-type": "application/json" },
     });
   }) as unknown as typeof fetch;
