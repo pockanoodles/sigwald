@@ -10,15 +10,16 @@ Sigwald's changes are listed here, newest first. The format follows [Keep a Chan
 - **Connector modules** (`src/modules/connect`): a module that reads another service declares the service, what it makes (tasks, calendar events, daily numbers) and its settings as plain data, and supplies one pull. Sigwald keeps the connection (checked with the service before it's kept, encrypted at rest), reads it on a schedule with backoff, finishes a task when the work is done at the source (so goals earn for it), closes one that's gone undone, never makes again a task you deleted, and holds new work back past a per-module limit. Migration `20261111120000_connector_modules`.
 - **One way out:** every connector request goes through `src/lib/connectors/egress.ts`, which allows only the hosts a service names, GET unless the service reads with POST (never a GraphQL mutation), public addresses only for anything typed in (checked at each redirect), and caps time, size and requests. `SIGWALD_CONNECTORS=off` refuses all of them.
 - **Modules on it, by shelf:**
-  - Goals & numbers: Readouts.
-  - Engineering: GitHub, GitLab, Linear, Jira, Sentry, PagerDuty.
+  - Goals & numbers: Readouts, Plausible.
+  - Engineering: GitHub, GitLab, Linear, Jira, Sentry, PagerDuty, UptimeRobot.
   - Projects: Asana, ClickUp, Trello, Todoist, Notion databases, Airtable.
   - Design & media: Figma comments, YouTube, Transistor, Patreon, Unsplash, Bluesky, Hacker News mentions.
   - Writing: Ghost, WordPress (self-hosted), beehiiv, Kit.
   - Research: Zotero, Readwise Reader, arXiv, Feeds (RSS and Atom), Semantic Scholar, Federal Register comment periods.
   - Clients: HubSpot, Pipedrive, Calendly, Cal.com, Zendesk.
   - Money & hours: Stripe, Lemon Squeezy, Harvest, Toggl Track, Clockify, YNAB.
-  - Learning: Codeforces.
+  - Learning: Moodle, WaniKani, Codeforces.
+  - Health: Intervals.icu.
   - People & career: Job boards (Greenhouse, Lever, Ashby).
   - Calendar & place: Deadline feed (any iCal link of due dates), Golden hour, Holidays, Weather.
   - Bring your own: Inbox, Spreadsheet (any published CSV).

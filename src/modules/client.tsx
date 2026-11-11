@@ -205,6 +205,11 @@ export const CLIENT_MODULES: Record<ModuleId, ClientContributions> = {
   unsplash: connectorClient("unsplash"),
   zotero: connectorClient("zotero"),
   readwise: connectorClient("readwise"),
+  moodle: connectorClient("moodle"),
+  wanikani: connectorClient("wanikani"),
+  intervals: connectorClient("intervals"),
+  uptimerobot: connectorClient("uptimerobot"),
+  plausible: connectorClient("plausible"),
 };
 
 /**

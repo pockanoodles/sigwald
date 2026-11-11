@@ -23,18 +23,21 @@ import harvest from "@/modules/harvest/manifest";
 import holidays from "@/modules/holidays/manifest";
 import hubspot from "@/modules/hubspot/manifest";
 import inbox from "@/modules/inbox/manifest";
+import intervals from "@/modules/intervals/manifest";
 import jira from "@/modules/jira/manifest";
 import jobs from "@/modules/jobs/manifest";
 import kit from "@/modules/kit/manifest";
 import ladder from "@/modules/ladder/manifest";
 import lemonsqueezy from "@/modules/lemonsqueezy/manifest";
 import linear from "@/modules/linear/manifest";
+import moodle from "@/modules/moodle/manifest";
 import notion from "@/modules/notion/manifest";
 import nutrition from "@/modules/nutrition/manifest";
 import pagerduty from "@/modules/pagerduty/manifest";
 import patreon from "@/modules/patreon/manifest";
 import people from "@/modules/people/manifest";
 import pipedrive from "@/modules/pipedrive/manifest";
+import plausible from "@/modules/plausible/manifest";
 import readouts from "@/modules/readouts/manifest";
 import readwise from "@/modules/readwise/manifest";
 import scholar from "@/modules/scholar/manifest";
@@ -53,6 +56,8 @@ import type {
   ModuleState,
 } from "@/modules/types";
 import unsplash from "@/modules/unsplash/manifest";
+import uptimerobot from "@/modules/uptimerobot/manifest";
+import wanikani from "@/modules/wanikani/manifest";
 import weather from "@/modules/weather/manifest";
 import wordpress from "@/modules/wordpress/manifest";
 import work from "@/modules/work/manifest";
@@ -76,12 +81,14 @@ export const MODULES: readonly ModuleManifest[] = [
   nutrition,
   code,
   readouts,
+  plausible,
   github,
   gitlab,
   linear,
   jira,
   sentry,
   pagerduty,
+  uptimerobot,
   asana,
   clickup,
   trello,
@@ -116,7 +123,10 @@ export const MODULES: readonly ModuleManifest[] = [
   toggl,
   clockify,
   ynab,
+  moodle,
+  wanikani,
   codeforces,
+  intervals,
   jobs,
   deadlines,
   daylight,

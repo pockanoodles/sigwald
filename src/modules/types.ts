@@ -67,7 +67,12 @@ export type ModuleId =
   | "patreon"
   | "unsplash"
   | "zotero"
-  | "readwise";
+  | "readwise"
+  | "moodle"
+  | "wanikani"
+  | "intervals"
+  | "uptimerobot"
+  | "plausible";
 
 /**
  * A shelf in the marketplace (/modules). Every module sits on exactly one;
