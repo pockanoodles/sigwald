@@ -119,6 +119,11 @@ const OWNED: Record<string, string[]> = {
   wordpress: ["src/modules/wordpress/"],
   beehiiv: ["src/modules/beehiiv/"],
   kit: ["src/modules/kit/"],
+  harvest: ["src/modules/harvest/"],
+  toggl: ["src/modules/toggl/"],
+  clockify: ["src/modules/clockify/"],
+  ynab: ["src/modules/ynab/"],
+  lemonsqueezy: ["src/modules/lemonsqueezy/"],
 };
 
 const REGISTRIES = new Set([

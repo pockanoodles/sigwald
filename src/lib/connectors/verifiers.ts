@@ -7,21 +7,26 @@ import { verifyAirtable } from "./airtable/client";
 import { verifyAsana } from "./asana/client";
 import { verifyBeehiiv } from "./beehiiv/client";
 import { verifyClickup } from "./clickup/client";
+import { verifyClockify } from "./clockify/client";
 import { verifyFigma } from "./figma/client";
 import { verifyGhost } from "./ghost/client";
 import { verifyGithub } from "./github/client";
 import { verifyGitlab } from "./gitlab/client";
+import { verifyHarvest } from "./harvest/client";
 import { verifyJira } from "./jira/client";
 import { verifyKit } from "./kit/client";
+import { verifyLemonSqueezy } from "./lemonsqueezy/client";
 import { verifyLinear } from "./linear/client";
 import { verifyNotion } from "./notion/client";
 import { verifyPagerduty } from "./pagerduty/client";
 import { verifySentry } from "./sentry/client";
 import { verifyStripe } from "./stripe/client";
 import { verifyTodoist } from "./todoist/client";
+import { verifyToggl } from "./toggl/client";
 import { verifyTrello } from "./trello/client";
 import type { VerifyFn } from "./types";
 import { verifyWordpress } from "./wordpress/client";
+import { verifyYnab } from "./ynab/client";
 
 export const VERIFIERS: Record<string, VerifyFn> = {
   github: verifyGithub,
@@ -42,4 +47,9 @@ export const VERIFIERS: Record<string, VerifyFn> = {
   wordpress: verifyWordpress,
   beehiiv: verifyBeehiiv,
   kit: verifyKit,
+  harvest: verifyHarvest,
+  toggl: verifyToggl,
+  clockify: verifyClockify,
+  ynab: verifyYnab,
+  lemonsqueezy: verifyLemonSqueezy,
 };

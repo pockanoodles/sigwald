@@ -4,6 +4,7 @@ import asana from "@/modules/asana/manifest";
 import beehiiv from "@/modules/beehiiv/manifest";
 import bluesky from "@/modules/bluesky/manifest";
 import clickup from "@/modules/clickup/manifest";
+import clockify from "@/modules/clockify/manifest";
 import code from "@/modules/code/manifest";
 import codeforces from "@/modules/codeforces/manifest";
 import courses from "@/modules/courses/manifest";
@@ -16,12 +17,14 @@ import ghost from "@/modules/ghost/manifest";
 import github from "@/modules/github/manifest";
 import gitlab from "@/modules/gitlab/manifest";
 import hackernews from "@/modules/hackernews/manifest";
+import harvest from "@/modules/harvest/manifest";
 import holidays from "@/modules/holidays/manifest";
 import inbox from "@/modules/inbox/manifest";
 import jira from "@/modules/jira/manifest";
 import jobs from "@/modules/jobs/manifest";
 import kit from "@/modules/kit/manifest";
 import ladder from "@/modules/ladder/manifest";
+import lemonsqueezy from "@/modules/lemonsqueezy/manifest";
 import linear from "@/modules/linear/manifest";
 import notion from "@/modules/notion/manifest";
 import nutrition from "@/modules/nutrition/manifest";
@@ -33,6 +36,7 @@ import sentry from "@/modules/sentry/manifest";
 import sheet from "@/modules/sheet/manifest";
 import stripe from "@/modules/stripe/manifest";
 import todoist from "@/modules/todoist/manifest";
+import toggl from "@/modules/toggl/manifest";
 import training from "@/modules/training/manifest";
 import trello from "@/modules/trello/manifest";
 import type {
@@ -44,6 +48,7 @@ import type {
 import weather from "@/modules/weather/manifest";
 import wordpress from "@/modules/wordpress/manifest";
 import work from "@/modules/work/manifest";
+import ynab from "@/modules/ynab/manifest";
 
 /**
  * Every module this build ships, in catalog order: finished modules first,
@@ -84,6 +89,11 @@ export const MODULES: readonly ModuleManifest[] = [
   scholar,
   fedreg,
   stripe,
+  lemonsqueezy,
+  harvest,
+  toggl,
+  clockify,
+  ynab,
   codeforces,
   jobs,
   deadlines,

@@ -13,6 +13,7 @@ import { pullAsana } from "@/modules/asana/pull";
 import { pullBeehiiv } from "@/modules/beehiiv/pull";
 import { pullBluesky } from "@/modules/bluesky/pull";
 import { pullClickup } from "@/modules/clickup/pull";
+import { pullClockify } from "@/modules/clockify/pull";
 import { codeClaimKeys, codeClaimOptions } from "@/modules/code/facts";
 import { pullCodeforces } from "@/modules/codeforces/pull";
 import type { PullFn } from "@/modules/connect/pull";
@@ -35,6 +36,7 @@ import { pullGhost } from "@/modules/ghost/pull";
 import { pullGithub } from "@/modules/github/pull";
 import { pullGitlab } from "@/modules/gitlab/pull";
 import { pullHackernews } from "@/modules/hackernews/pull";
+import { pullHarvest } from "@/modules/harvest/pull";
 import { pullHolidays } from "@/modules/holidays/pull";
 import { pullInbox } from "@/modules/inbox/pull";
 import { pullJira } from "@/modules/jira/pull";
@@ -43,6 +45,7 @@ import { pullKit } from "@/modules/kit/pull";
 import { goalRankSignals, goalTaskFacts } from "@/modules/ladder/facts";
 import { searchGoals } from "@/modules/ladder/search";
 import { linkChangedTasksToGoals } from "@/modules/ladder/server";
+import { pullLemonSqueezy } from "@/modules/lemonsqueezy/pull";
 import { pullLinear } from "@/modules/linear/pull";
 import { pullNotion } from "@/modules/notion/pull";
 import { pullPagerduty } from "@/modules/pagerduty/pull";
@@ -53,6 +56,7 @@ import { pullSentry } from "@/modules/sentry/pull";
 import { pullSheet } from "@/modules/sheet/pull";
 import { pullStripe } from "@/modules/stripe/pull";
 import { pullTodoist } from "@/modules/todoist/pull";
+import { pullToggl } from "@/modules/toggl/pull";
 import {
   routineClaimKeys,
   routineClaimOptions,
@@ -66,6 +70,7 @@ import { pullWordpress } from "@/modules/wordpress/pull";
 import { restoreShiftEvents } from "@/modules/work/feed";
 import { searchWork } from "@/modules/work/search";
 import { reconcileTimesheets } from "@/modules/work/timesheet";
+import { pullYnab } from "@/modules/ynab/pull";
 
 export interface ModuleJob {
   /** Names it in logs. */
@@ -214,4 +219,9 @@ export const SERVER_MODULES: Record<ModuleId, ServerContributions> = {
   wordpress: connectorServer("wordpress", pullWordpress),
   beehiiv: connectorServer("beehiiv", pullBeehiiv),
   kit: connectorServer("kit", pullKit),
+  harvest: connectorServer("harvest", pullHarvest),
+  toggl: connectorServer("toggl", pullToggl),
+  clockify: connectorServer("clockify", pullClockify),
+  ynab: connectorServer("ynab", pullYnab),
+  lemonsqueezy: connectorServer("lemonsqueezy", pullLemonSqueezy),
 };
