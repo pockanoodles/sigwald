@@ -30,6 +30,7 @@ export const TASK_PROPERTIES = [
   "hs_task_body",
   "hs_task_completion_date",
   "hs_lastmodifieddate",
+  "hubspot_owner_id",
 ];
 
 function headers(secret: Readonly<Record<string, string>>) {

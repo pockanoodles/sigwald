@@ -64,6 +64,7 @@ export interface ZendeskTicket {
   priority?: string | null;
   status: string;
   type?: string | null;
+  assignee_id?: number | null;
   due_at?: string | null;
   updated_at?: string | null;
 }

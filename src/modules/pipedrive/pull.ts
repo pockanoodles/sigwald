@@ -67,8 +67,13 @@ export function toTask(a: PipedriveActivity, names: Names): PulledTask {
     description: plainText(a.note),
     due: dueOf(a),
     minutes: minutesOf(a.duration),
-    group: deal
-      ? { key: `pipedrive:deal:${a.deal_id}`, label: deal }
+    // Keyed by the deal itself, so a failed name lookup never moves the task
+    // out from under a goal that claims the deal.
+    group: a.deal_id
+      ? {
+          key: `pipedrive:deal:${a.deal_id}`,
+          label: deal ?? `Deal ${a.deal_id}`,
+        }
       : { key: "pipedrive:activities", label: "Pipedrive activities" },
     facts: [
       ...fact("Type", label),
@@ -86,6 +91,9 @@ export function toTask(a: PipedriveActivity, names: Names): PulledTask {
 function distinct(values: (number | null)[]): number[] {
   return [...new Set(values.filter((v): v is number => typeof v === "number"))];
 }
+
+/** Held items looked up per pull, at most. */
+const MAX_CHECKS = 100;
 
 export const pullPipedrive: PullFn = async (ctx) => {
   const { http, secret, config, now } = ctx;
@@ -114,23 +122,36 @@ export const pullPipedrive: PullFn = async (ctx) => {
 
   const open = activities.map((a) => toTask(a, names));
   const seen = new Set(open.map((t) => t.externalId));
-  const missing = new Map(
-    ctx.open
-      .filter((o) => o.kind === "task" && !seen.has(o.externalId))
-      .slice(0, 100)
-      .map((o) => [o.externalId, o.title])
+  // Held items that dropped off the open list, a batch at a time: each one
+  // checked is said to be done or gone, so it leaves the open set and the
+  // next pull checks the next batch.
+  const missingAll = ctx.open.filter(
+    (o) => o.kind === "task" && !seen.has(o.externalId)
   );
+  const missing = new Map(
+    missingAll.slice(0, MAX_CHECKS).map((o) => [o.externalId, o.title])
+  );
+  const listComplete = complete;
+  const whole = listComplete && missingAll.length <= MAX_CHECKS;
   const finished: PulledTask[] = [];
   for (const a of await doneAmong(http, secret, [...missing.keys()])) {
-    const title = missing.get(String(a.id));
+    const id = String(a.id);
+    const title = missing.get(id);
     if (title === undefined) continue;
+    missing.delete(id);
     finished.push({
       kind: "task",
-      externalId: String(a.id),
+      externalId: id,
       title,
       state: "done",
       doneAt: toDate(a.marked_as_done_time) ?? now,
     });
   }
-  return { items: [...open, ...finished], complete };
+  // The rest of the batch isn't done and, by a complete list, isn't yours.
+  if (listComplete) {
+    for (const [externalId, title] of missing) {
+      finished.push({ kind: "task", externalId, title, state: "gone" });
+    }
+  }
+  return { items: [...open, ...finished], complete: whole };
 };

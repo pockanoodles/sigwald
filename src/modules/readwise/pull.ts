@@ -106,9 +106,12 @@ export const pullReadwise: PullFn = async (ctx) => {
   );
   const finished: PulledTask[] = [];
   if (titles.size > 0) {
-    const since =
-      ctx.lastSuccessAt ??
-      new Date(now.getTime() - FIRST_LOOKBACK_DAYS * 86_400_000);
+    // A day before the last good pull, so a document archived while that
+    // pull ran isn't missed.
+    const since = new Date(
+      (ctx.lastSuccessAt?.getTime() ??
+        now.getTime() - FIRST_LOOKBACK_DAYS * 86_400_000) - 86_400_000
+    );
     const archived = await listDocuments(http, secret, "archive", {
       updatedAfter: since,
       maxPages: 3,

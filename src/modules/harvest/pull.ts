@@ -120,18 +120,38 @@ export const pullHarvest: PullFn = async ({
     for (const h of gone.slice(0, MAX_DONE_CHECKS)) {
       try {
         const inv = await invoice(http, secret, config, h.externalId);
-        if (inv.state === "paid" || inv.state === "closed")
+        // Only a paid invoice was chased to its end. One written off
+        // (closed), back in draft, voided, or open but no longer overdue has
+        // nothing left to chase: gone, said of it so the next pull checks
+        // the next.
+        items.push(
+          inv.state === "paid"
+            ? {
+                kind: "task",
+                externalId: h.externalId,
+                title: h.title,
+                state: "done",
+                doneAt: toDate(inv.paid_at) ?? now,
+              }
+            : {
+                kind: "task",
+                externalId: h.externalId,
+                title: h.title,
+                state: "gone",
+              }
+        );
+      } catch (error) {
+        if (!isConnectorError(error)) throw error;
+        if (error.kind === "not_found") {
           items.push({
             kind: "task",
             externalId: h.externalId,
             title: h.title,
-            state: "done",
-            doneAt: toDate(inv.paid_at) ?? toDate(inv.closed_at) ?? now,
+            state: "gone",
           });
-        else if (inv.state !== "open") complete = false;
-      } catch (error) {
-        if (!isConnectorError(error)) throw error;
-        complete = false;
+        } else {
+          complete = false;
+        }
       }
     }
   } catch (error) {

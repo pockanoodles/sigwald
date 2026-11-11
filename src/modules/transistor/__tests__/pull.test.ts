@@ -11,7 +11,9 @@ import { TRANSISTOR } from "@/lib/connectors/transistor/service";
 import type { PullContext } from "@/modules/connect/pull";
 import { resolveSettings } from "@/modules/connect/settings";
 import transistor from "@/modules/transistor/manifest";
-import { pullTransistor } from "@/modules/transistor/pull";
+import { transistorPull } from "@/modules/transistor/pull";
+
+const pullTransistor = transistorPull(0);
 
 const API = "https://api.transistor.fm/v1";
 const now = new Date("2026-11-11T15:00:00.000Z");
@@ -149,7 +151,7 @@ describe("pullTransistor", () => {
     expect(calls.every((c) => c.method === "GET")).toBe(true);
   });
 
-  it("finishes a held draft that is published now, and leaves a still-scheduled one", async () => {
+  it("finishes a held draft once it is scheduled or published", async () => {
     const { http } = fakeServiceHttp(TRANSISTOR, [
       {
         url: `${API}/episodes/20`,
@@ -186,15 +188,19 @@ describe("pullTransistor", () => {
       })
     );
     const done = out.items.filter((i) => i.kind === "task");
-    expect(done).toEqual([
-      {
-        kind: "task",
-        externalId: "episode:20",
-        title: "Finish episode: A",
-        state: "done",
-        doneAt: new Date("2026-11-10T12:00:00.000Z"),
-      },
-    ]);
+    expect(done).toEqual(
+      expect.arrayContaining([
+        {
+          kind: "task",
+          externalId: "episode:20",
+          title: "Finish episode: A",
+          state: "done",
+          doneAt: new Date("2026-11-10T12:00:00.000Z"),
+        },
+        // Scheduled means written: done, though not yet out.
+        expect.objectContaining({ externalId: "episode:21", state: "done" }),
+      ])
+    );
   });
 
   it("asks for one show and reports partial when analytics fails", async () => {

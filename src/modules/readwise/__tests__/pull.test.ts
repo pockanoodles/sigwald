@@ -151,8 +151,9 @@ describe("pullReadwise", () => {
       },
     ]);
     const archive = calls.find((c) => c.url.includes("location=archive"))!;
+    // A day before the last good pull, so nothing archived while it ran slips by.
     expect(new URL(archive.url).searchParams.get("updatedAfter")).toBe(
-      "2026-11-10T00:00:00.000Z"
+      "2026-11-09T00:00:00.000Z"
     );
   });
 });

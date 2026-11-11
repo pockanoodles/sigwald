@@ -12,14 +12,15 @@ import {
   fact,
   toDate,
 } from "@/modules/connect/pull";
+import { setting } from "@/modules/connect/settings";
 
 const DAY = 86_400_000;
 
-function toEvent(b: CalcomBooking): PulledEvent | null {
+function toEvent(b: CalcomBooking, withNames: boolean): PulledEvent | null {
   const start = toDate(b.start);
   const end = toDate(b.end);
   if (!start || !end) return null;
-  const names = (b.attendees ?? [])
+  const names = (withNames ? (b.attendees ?? []) : [])
     .map((a) => a.name?.trim() ?? "")
     .filter((n) => n.length > 0);
   const place = b.location?.trim() ?? "";
@@ -44,13 +45,14 @@ function toEvent(b: CalcomBooking): PulledEvent | null {
 
 export const pullCalcom: PullFn = async (ctx) => {
   const { http, secret, now } = ctx;
+  const withNames = setting.on(ctx.settings, "names");
   const from = new Date(now.getTime() - DAY);
   const to = new Date(now.getTime() + 30 * DAY);
 
   const upcoming = await bookingsIn(http, secret, "upcoming", from, to);
   let complete = upcoming.complete;
   const items: PulledEvent[] = upcoming.bookings.flatMap((b) => {
-    const event = toEvent(b);
+    const event = toEvent(b, withNames);
     return event ? [event] : [];
   });
 
@@ -65,7 +67,7 @@ export const pullCalcom: PullFn = async (ctx) => {
     if (!cancelled.complete) complete = false;
     for (const b of cancelled.bookings) {
       if (!held.has(b.uid)) continue;
-      const event = toEvent(b);
+      const event = toEvent(b, withNames);
       if (event) items.push({ ...event, state: "done" });
     }
   }

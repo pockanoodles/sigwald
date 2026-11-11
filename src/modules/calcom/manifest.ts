@@ -24,7 +24,15 @@ const calcom: ModuleManifest = {
     service: CALCOM,
     makes: ["events"],
     everyMinutes: 30,
-    settings: [],
+    settings: [
+      {
+        kind: "toggle",
+        key: "names",
+        label: "Show who booked",
+        help: "Keep the names of who booked each meeting. Off keeps only the meeting.",
+        default: true,
+      },
+    ],
   },
 };
 
