@@ -120,8 +120,11 @@ describe("the egress", () => {
       ...CONNECTORS.flatMap((m) => files(`src/modules/${m.id}`)),
     ].filter((f) => f !== "src/lib/connectors/egress.ts");
     expect(scanned.length).toBeGreaterThan(0);
+    // A way out of its own: fetch, XHR, or Node's http, https, net, tls or
+    // undici. (The egress's own `Http`, called as `http.request(…)`, is the
+    // way in, so the name alone proves nothing: the import does.)
     const offenders = scanned.filter((f) =>
-      /\bfetch\s*\(|\bXMLHttpRequest\b|\bhttps?\.request\(|from ["'](node:)?https?["']/.test(
+      /\bfetch\s*\(|\bXMLHttpRequest\b|(from|require\()\s*["'](node:)?(https?|net|tls|http2|undici)["']/.test(
         fs.readFileSync(path.join(ROOT, f), "utf8")
       )
     );

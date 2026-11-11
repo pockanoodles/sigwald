@@ -94,6 +94,16 @@ const OWNED: Record<string, string[]> = {
   ],
   deadlines: ["src/modules/deadlines/"],
   sheet: ["src/modules/sheet/"],
+  holidays: ["src/modules/holidays/"],
+  weather: ["src/modules/weather/"],
+  jobs: ["src/modules/jobs/"],
+  arxiv: ["src/modules/arxiv/"],
+  feeds: ["src/modules/feeds/"],
+  fedreg: ["src/modules/fedreg/"],
+  scholar: ["src/modules/scholar/"],
+  codeforces: ["src/modules/codeforces/"],
+  bluesky: ["src/modules/bluesky/"],
+  hackernews: ["src/modules/hackernews/"],
 };
 
 const REGISTRIES = new Set([

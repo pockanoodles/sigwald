@@ -7,7 +7,10 @@ import type { Db, DbTransaction } from "@/lib/prisma";
 import type { SearchGroup, SearchQuery } from "@/lib/search/types";
 import type { RankSignals } from "@/lib/sigwald/rank-stage1";
 
+import { pullArxiv } from "@/modules/arxiv/pull";
+import { pullBluesky } from "@/modules/bluesky/pull";
 import { codeClaimKeys, codeClaimOptions } from "@/modules/code/facts";
+import { pullCodeforces } from "@/modules/codeforces/pull";
 import type { PullFn } from "@/modules/connect/pull";
 import { connectorServer } from "@/modules/connect/server";
 import {
@@ -21,14 +24,20 @@ import { searchCourses } from "@/modules/courses/search";
 import { syncCanvasIfDue } from "@/modules/courses/server";
 import { pullDaylight } from "@/modules/daylight/pull";
 import { pullDeadlines } from "@/modules/deadlines/pull";
+import { pullFedreg } from "@/modules/fedreg/pull";
+import { pullFeeds } from "@/modules/feeds/pull";
 import { pullGithub } from "@/modules/github/pull";
+import { pullHackernews } from "@/modules/hackernews/pull";
+import { pullHolidays } from "@/modules/holidays/pull";
 import { pullInbox } from "@/modules/inbox/pull";
+import { pullJobs } from "@/modules/jobs/pull";
 import { goalRankSignals, goalTaskFacts } from "@/modules/ladder/facts";
 import { searchGoals } from "@/modules/ladder/search";
 import { linkChangedTasksToGoals } from "@/modules/ladder/server";
 import { pullLinear } from "@/modules/linear/pull";
 import { reconcileReachOuts } from "@/modules/people/reach-out";
 import { searchPeople } from "@/modules/people/search";
+import { pullScholar } from "@/modules/scholar/pull";
 import { pullSheet } from "@/modules/sheet/pull";
 import { pullStripe } from "@/modules/stripe/pull";
 import {
@@ -38,6 +47,7 @@ import {
 import { searchRoutines } from "@/modules/training/search";
 import { reconcileWorkouts } from "@/modules/training/workout";
 import type { ClaimOption, ModuleId, ProofItem } from "@/modules/types";
+import { pullWeather } from "@/modules/weather/pull";
 import { restoreShiftEvents } from "@/modules/work/feed";
 import { searchWork } from "@/modules/work/search";
 import { reconcileTimesheets } from "@/modules/work/timesheet";
@@ -164,4 +174,14 @@ export const SERVER_MODULES: Record<ModuleId, ServerContributions> = {
   readouts: {},
   deadlines: connectorServer("deadlines", pullDeadlines),
   sheet: connectorServer("sheet", pullSheet),
+  holidays: connectorServer("holidays", pullHolidays),
+  weather: connectorServer("weather", pullWeather),
+  jobs: connectorServer("jobs", pullJobs),
+  arxiv: connectorServer("arxiv", pullArxiv),
+  feeds: connectorServer("feeds", pullFeeds),
+  fedreg: connectorServer("fedreg", pullFedreg),
+  scholar: connectorServer("scholar", pullScholar),
+  codeforces: connectorServer("codeforces", pullCodeforces),
+  bluesky: connectorServer("bluesky", pullBluesky),
+  hackernews: connectorServer("hackernews", pullHackernews),
 };

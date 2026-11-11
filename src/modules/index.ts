@@ -1,14 +1,23 @@
+import arxiv from "@/modules/arxiv/manifest";
+import bluesky from "@/modules/bluesky/manifest";
 import code from "@/modules/code/manifest";
+import codeforces from "@/modules/codeforces/manifest";
 import courses from "@/modules/courses/manifest";
 import daylight from "@/modules/daylight/manifest";
 import deadlines from "@/modules/deadlines/manifest";
+import fedreg from "@/modules/fedreg/manifest";
+import feeds from "@/modules/feeds/manifest";
 import github from "@/modules/github/manifest";
+import hackernews from "@/modules/hackernews/manifest";
+import holidays from "@/modules/holidays/manifest";
 import inbox from "@/modules/inbox/manifest";
+import jobs from "@/modules/jobs/manifest";
 import ladder from "@/modules/ladder/manifest";
 import linear from "@/modules/linear/manifest";
 import nutrition from "@/modules/nutrition/manifest";
 import people from "@/modules/people/manifest";
 import readouts from "@/modules/readouts/manifest";
+import scholar from "@/modules/scholar/manifest";
 import sheet from "@/modules/sheet/manifest";
 import stripe from "@/modules/stripe/manifest";
 import training from "@/modules/training/manifest";
@@ -18,6 +27,7 @@ import type {
   ModuleManifest,
   ModuleState,
 } from "@/modules/types";
+import weather from "@/modules/weather/manifest";
 import work from "@/modules/work/manifest";
 
 /**
@@ -42,6 +52,16 @@ export const MODULES: readonly ModuleManifest[] = [
   readouts,
   deadlines,
   sheet,
+  holidays,
+  weather,
+  jobs,
+  arxiv,
+  feeds,
+  fedreg,
+  scholar,
+  codeforces,
+  bluesky,
+  hackernews,
 ];
 
 export function isModuleId(id: string): id is ModuleId {

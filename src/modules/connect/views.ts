@@ -126,6 +126,10 @@ export function formatReading(
       return `${n(1)} h`;
     case "minutes":
       return `${n(0)} min`;
+    case "celsius":
+      return `${n(0)}°C`;
+    case "fahrenheit":
+      return `${n(0)}°F`;
     default:
       if (/^[a-z]{3}$/.test(unit)) {
         try {
