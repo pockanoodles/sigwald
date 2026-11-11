@@ -55,10 +55,14 @@ export interface PulledTask {
   title: string;
   /**
    * Open is work to do; done finishes its task (and earns what finished work
-   * earns). A done item needs only its id, a title and `doneAt`: it never
-   * changes the rest of what's held.
+   * earns). Gone says, for this one item, what a complete pull says of
+   * everything it didn't list: it isn't yours any more (reassigned, deleted),
+   * so its task closes undone. A pull that checks held items a batch at a
+   * time uses it, so each checked item leaves the open set and the next pull
+   * checks the next batch. A done or gone item needs only its id, a title and
+   * (for done) `doneAt`: it never changes the rest of what's held.
    */
-  state: "open" | "done";
+  state: "open" | "done" | "gone";
   doneAt?: Date | null;
   url?: string | null;
   /** Plain text or Markdown. */

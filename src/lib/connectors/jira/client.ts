@@ -69,6 +69,25 @@ export const FIELDS = [
   "statuscategorychangedate",
 ];
 
+/**
+ * One issue's status, by key: how a held issue that dropped off the open
+ * search is told apart (done, someone else's, or deleted, which answers 404).
+ * GET /rest/api/3/issue/{issueIdOrKey}
+ * (https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issues/#api-rest-api-3-issue-issueidorkey-get)
+ */
+export function getIssue(
+  http: Http,
+  secret: Readonly<Record<string, string>>,
+  config: Readonly<Record<string, string>>,
+  key: string
+): Promise<JiraIssue> {
+  return http.json<JiraIssue>({
+    url: `${apiBase(config)}/issue/${encodeURIComponent(key)}`,
+    query: { fields: "status,updated,statuscategorychangedate" },
+    headers: jiraHeaders(secret, config),
+  });
+}
+
 interface SearchPage {
   issues: JiraIssue[];
   nextPageToken?: string | null;

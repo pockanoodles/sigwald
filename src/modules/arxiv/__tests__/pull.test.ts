@@ -88,3 +88,15 @@ describe("arxivId", () => {
     );
   });
 });
+
+describe("a full page of new papers", () => {
+  it("can't vouch for the window, so nothing ages out early", async () => {
+    const many = Array.from({ length: 50 }, (_, i) =>
+      entry(`2611.${String(10000 + i)}`, "2026-11-10T18:58:52Z", ["A"])
+    ).join("");
+    const { http } = fakeServiceHttp(ARXIV, [
+      { url: "https://export.arxiv.org/api/query", text: atom(many) },
+    ]);
+    expect((await pullArxiv(ctx(http))).complete).toBe(false);
+  });
+});

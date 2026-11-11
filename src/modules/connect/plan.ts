@@ -189,8 +189,29 @@ export function planPull(input: PlanInput): Plan {
     seen.add(pulled.externalId);
     counts.seen += 1;
     const h = held.get(pulled.externalId) ?? null;
-    // Something finished before Sigwald ever saw it open isn't work it tracked.
-    if (!h && pulled.state === "done") continue;
+    // Something finished (or gone) before Sigwald ever saw it open isn't work it tracked.
+    if (!h && pulled.state !== "open") continue;
+
+    if (pulled.state === "gone" && h) {
+      // Said of this one item: what a complete pull says of anything unlisted.
+      if (h.state !== "gone") {
+        counts.gone += 1;
+        writes.push({
+          heldId: h.id,
+          externalId: h.externalId,
+          item: { state: "gone" },
+          task:
+            h.task && h.task.status !== "completed" && !h.task.closedAt
+              ? { kind: "update", taskId: h.task.id, change: { closedAt: now } }
+              : null,
+          event:
+            h.event && (h.event.end > now || input.removePastEvents)
+              ? { kind: "remove", eventId: h.event.id }
+              : null,
+        });
+      }
+      continue;
+    }
 
     const sourceDoneAt = pulled.kind === "task" ? pulled.doneAt : null;
     const doneAt =
@@ -481,7 +502,8 @@ function cleanItem(raw: PulledItem): PulledItem | null {
   const externalId = text(raw?.externalId, 300);
   const title = text(raw?.title, 300);
   if (!externalId || !title) return null;
-  const state = raw.state === "done" ? "done" : "open";
+  // An event that's gone is as good as cancelled: done takes it off the calendar.
+  const state = raw.state === "done" || raw.state === "gone" ? "done" : "open";
   const base = {
     externalId,
     title,
@@ -530,6 +552,7 @@ function cleanItem(raw: PulledItem): PulledItem | null {
   return {
     ...base,
     kind: "task",
+    state: raw.state === "gone" ? "gone" : base.state,
     doneAt: validDate(raw.doneAt),
     due,
     impact:

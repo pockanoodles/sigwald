@@ -427,3 +427,27 @@ describe("planPull: a done report", () => {
     });
   });
 });
+
+describe("planPull: an item said to be gone", () => {
+  it("closes its task undone, even when the pull vouches for nothing else", () => {
+    const { writes, counts } = plan(
+      [held("a"), held("b")],
+      [{ kind: "task", externalId: "a", title: "Task a", state: "gone" }],
+      false
+    );
+    expect(counts.gone).toBe(1);
+    expect(writes).toEqual([
+      {
+        heldId: "item-a",
+        externalId: "a",
+        item: { state: "gone" },
+        task: { kind: "update", taskId: "task-a", change: { closedAt: now } },
+        event: null,
+      },
+    ]);
+  });
+
+  it("ignores one Sigwald never held", () => {
+    expect(plan([], [{ kind: "task", externalId: "z", title: "Z", state: "gone" }]).writes).toEqual([]);
+  });
+});

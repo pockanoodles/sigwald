@@ -143,6 +143,34 @@ describe("pullKit", () => {
     ]);
   });
 
+  it("finishes a held draft once it's scheduled, and vouches for nothing past a cut-off schedule", async () => {
+    const { http } = fakeServiceHttp(KIT, [
+      { url: new RegExp(`${API}/broadcasts\\?.*status=draft`), json: list([]) },
+      {
+        url: new RegExp(`${API}/broadcasts\\?.*status=scheduled`),
+        json: list([broadcast(9, { send_at: "2026-11-14T13:00:00Z" })], true),
+      },
+      {
+        url: new RegExp(`${API}/broadcasts\\?.*status=completed`),
+        json: list([]),
+      },
+      { url: new RegExp(`${API}/subscribers\\?`), json: subscribers },
+    ]);
+    const result = await pullKit(
+      ctx(http, {
+        open: [{ externalId: "9", kind: "task", title: "Finish: Old" }],
+      })
+    );
+    expect(result.items).toContainEqual({
+      kind: "task",
+      externalId: "9",
+      title: "Finish: Old",
+      state: "done",
+      doneAt: now,
+    });
+    expect(result.complete).toBe(false);
+  });
+
   it("says it is partial when Kit has more drafts than one page", async () => {
     const { http } = fakeServiceHttp(KIT, [
       {

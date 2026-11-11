@@ -68,7 +68,21 @@ export const pullKit: PullFn = async (ctx) => {
       .map((o) => [o.externalId, o.title])
   );
   const finished: PulledTask[] = [];
-  let complete = drafts.complete;
+  // A held draft that's now scheduled has been written: its task is done.
+  for (const b of scheduled.broadcasts) {
+    const title = held.get(String(b.id));
+    if (title === undefined) continue;
+    held.delete(String(b.id));
+    finished.push({
+      kind: "task",
+      externalId: String(b.id),
+      title,
+      state: "done",
+      doneAt: now,
+    });
+  }
+  // A cut-off list of scheduled sends can't vouch for the events it left out.
+  let complete = drafts.complete && scheduled.complete;
   if (held.size > 0) {
     const since = new Date(
       (ctx.lastSuccessAt?.getTime() ?? now.getTime() - FIRST_LOOKBACK_MS) -

@@ -15,6 +15,8 @@ import {
 } from "@/modules/connect/pull";
 import { setting } from "@/modules/connect/settings";
 
+const MAX_ENTRIES = 100;
+
 const hash = (text: string) =>
   createHash("sha256").update(text).digest("hex").slice(0, 16);
 
@@ -37,7 +39,18 @@ export const pullFeeds: PullFn = async ({ http, settings, now }) => {
     }
     const feedKey = hash(link);
     const feedTitle = feed.title ?? new URL(link).hostname;
-    for (const e of feed.entries.slice(0, 100)) {
+    // A feed shows only its latest posts. Unless what it shows reaches back
+    // past the window, a post that fell off it may still be inside the
+    // window, and mustn't close as if it had aged out.
+    const dated = feed.entries
+      .slice(0, MAX_ENTRIES)
+      .flatMap((e) => (e.published ? [e.published.getTime()] : []));
+    const reachedBack =
+      feed.entries.length <= MAX_ENTRIES &&
+      dated.length > 0 &&
+      Math.min(...dated) < since;
+    if (!reachedBack) complete = false;
+    for (const e of feed.entries.slice(0, MAX_ENTRIES)) {
       // A post with no date can't be placed in the window: leave it.
       if (!e.published || e.published.getTime() < since) continue;
       if (only && !e.title.toLowerCase().includes(only)) continue;
