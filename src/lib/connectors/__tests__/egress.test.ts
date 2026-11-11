@@ -179,6 +179,81 @@ describe("createHttp", () => {
     );
   });
 
+  it("follows a redirected POST only when it asks for the same request again", async () => {
+    const post = { ...fixed, allowPost: true };
+    const seeOther = httpWith(post, () =>
+      respond(303, "", { location: "https://api.acme.com/result" })
+    );
+    expect(
+      await kindOf(
+        seeOther.http.json({
+          url: "https://api.acme.com/q",
+          method: "POST",
+          form: { wstoken: "a-token-in-the-body" },
+        })
+      )
+    ).toBe("bad_response");
+    expect(seeOther.seen).toHaveLength(1);
+
+    const again = httpWith(post, (url) =>
+      url.endsWith("/q")
+        ? respond(307, "", { location: "https://api.acme.com/q2" })
+        : respond(200, { ok: true })
+    );
+    await expect(
+      again.http.json({
+        url: "https://api.acme.com/q",
+        method: "POST",
+        json: { query: "{ a }" },
+      })
+    ).resolves.toEqual({ ok: true });
+    expect(again.seen[1].init).toMatchObject({
+      method: "POST",
+      body: JSON.stringify({ query: "{ a }" }),
+    });
+  });
+
+  it("calls an answer cut off partway a network failure", async () => {
+    const { http } = httpWith(
+      fixed,
+      () =>
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(new TextEncoder().encode('{"a":'));
+              controller.error(new TypeError("terminated"));
+            },
+          }),
+          { status: 200 }
+        )
+    );
+    expect(await kindOf(http.json("https://api.acme.com/x"))).toBe("network");
+  });
+
+  it("sends nothing more once the pull's time is up, and says why", async () => {
+    const stop = new AbortController();
+    const seen: string[] = [];
+    const http = createHttp(fixed, {
+      signal: stop.signal,
+      // A service that never answers: only the signal ends the wait.
+      fetch: (async (url: string, init: RequestInit) => {
+        seen.push(url);
+        return new Promise<Response>((_, reject) => {
+          const signal = init.signal!;
+          if (signal.aborted) reject(signal.reason);
+          signal.addEventListener("abort", () => reject(signal.reason));
+        });
+      }) as unknown as typeof fetch,
+    });
+    const late = new ConnectorError("network", "Acme took too long to read");
+    const inFlight = http.json("https://api.acme.com/slow");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    stop.abort(late);
+    await expect(inFlight).rejects.toBe(late);
+    await expect(http.json("https://api.acme.com/next")).rejects.toBe(late);
+    expect(seen).toEqual(["https://api.acme.com/slow"]);
+  });
+
   it("checks a typed site's host and its DNS answer", async () => {
     const site: EgressPolicy = {
       name: "Ghost",

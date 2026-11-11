@@ -1732,6 +1732,8 @@ model ModuleSync {
   lastSuccessAt DateTime?
   /// Set while a pull holds the module, so a scheduled pull and Read now never overlap (an old answer would undo a newer one). Expires on its own if the process dies.
   pullingSince  DateTime?
+  /// Not before this: the service asked Sigwald to wait (Retry-After). Read now waits too.
+  retryAt       DateTime?
   /// Pulls in a row that failed: each one waits longer before the next.
   failures      Int       @default(0)
   /// Why the last pull didn't work, in plain words.

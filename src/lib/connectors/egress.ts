@@ -14,14 +14,16 @@
  * - GET always; POST only for a service that reads with it, and never a
  *   GraphQL mutation;
  * - it gives up after 20 seconds, stops reading past 8 MB, and one pull
- *   makes at most 60 requests.
+ *   makes at most 60 requests, none once the pull's own time is up;
+ * - a redirect is followed as the same request only when it asks for that
+ *   (always for a GET; a POST only on 307 or 308).
  *
  * `SIGWALD_CONNECTORS=off` refuses every request, for an install that wants
  * no module talking to anything.
  */
 import { assertPublicHost, assertResolvesPublic } from "@/lib/net/public-host";
 
-import { ConnectorError } from "./errors";
+import { ConnectorError, isConnectorError } from "./errors";
 import {
   type EgressPolicy,
   isGraphqlWrite,
@@ -73,6 +75,8 @@ export interface HttpOptions {
   maxBytes?: number;
   /** The DNS check for typed hosts; tests swap it. */
   checkPublic?: (url: URL) => Promise<void>;
+  /** Ends what's in flight and refuses every later request once it fires: the pull's deadline, whose reason says why. */
+  signal?: AbortSignal;
 }
 
 const USER_AGENT = "Sigwald (+https://github.com/pockanoodles/sigwald)";
@@ -126,10 +130,32 @@ function redact(text: string, secrets: string[]): string {
   return out;
 }
 
+/**
+ * A request that broke on the way, before an answer or partway through one,
+ * as a `network` failure: the pull's own deadline when that's what ended
+ * it, otherwise a timeout or a lost connection.
+ */
+function lost(
+  error: unknown,
+  name: string,
+  signal: AbortSignal | undefined,
+  otherwise: string
+): ConnectorError {
+  if (signal?.aborted && isConnectorError(signal.reason)) return signal.reason;
+  const timedOut =
+    error instanceof Error &&
+    (error.name === "TimeoutError" || error.name === "AbortError");
+  return new ConnectorError(
+    "network",
+    timedOut ? `${name} took too long to answer` : otherwise
+  );
+}
+
 async function readCapped(
   response: Response,
   maxBytes: number,
-  name: string
+  name: string,
+  signal: AbortSignal | undefined
 ): Promise<string> {
   const declared = Number(response.headers.get("content-length"));
   if (Number.isFinite(declared) && declared > maxBytes) {
@@ -143,7 +169,10 @@ async function readCapped(
   const chunks: Uint8Array[] = [];
   let total = 0;
   for (;;) {
-    const { done, value } = await reader.read();
+    // A timeout or a dropped connection after the headers lands here.
+    const { done, value } = await reader.read().catch((error: unknown) => {
+      throw lost(error, name, signal, `${name}'s answer was cut off`);
+    });
     if (done) break;
     total += value.byteLength;
     if (total > maxBytes) {
@@ -233,6 +262,7 @@ export function createHttp(
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES;
   const checkPublic = options.checkPublic ?? checkPublicDefault;
+  const signal = options.signal;
   let count = 0;
 
   async function vet(url: URL): Promise<void> {
@@ -305,6 +335,14 @@ export function createHttp(
     let url = withQuery(req.url, req.query);
     const origin = url.host;
     for (let hop = 0; ; hop++) {
+      if (signal?.aborted) {
+        throw lost(
+          signal.reason,
+          policy.name,
+          signal,
+          `Stopped reading ${policy.name}`
+        );
+      }
       if (count >= maxRequests) {
         throw new ConnectorError(
           "refused",
@@ -322,18 +360,12 @@ export function createHttp(
           body,
           redirect: "manual",
           cache: "no-store",
-          signal: AbortSignal.timeout(timeoutMs),
+          signal: signal
+            ? AbortSignal.any([AbortSignal.timeout(timeoutMs), signal])
+            : AbortSignal.timeout(timeoutMs),
         });
       } catch (error) {
-        const timedOut =
-          error instanceof Error &&
-          (error.name === "TimeoutError" || error.name === "AbortError");
-        throw new ConnectorError(
-          "network",
-          timedOut
-            ? `${policy.name} took too long to answer`
-            : `Couldn't reach ${policy.name}`
-        );
+        throw lost(error, policy.name, signal, `Couldn't reach ${policy.name}`);
       }
 
       if (
@@ -346,6 +378,19 @@ export function createHttp(
           throw new ConnectorError(
             "bad_response",
             `${policy.name} redirected too many times`
+          );
+        }
+        // Only a 307 or 308 asks for the same POST again. Any other redirect
+        // would turn it into a GET without its query: a different read, so it
+        // stops here rather than send the body on or drop it.
+        if (
+          method === "POST" &&
+          response.status !== 307 &&
+          response.status !== 308
+        ) {
+          throw new ConnectorError(
+            "bad_response",
+            `${policy.name} redirected a read Sigwald sends as a POST (${response.status}), which it won't follow`
           );
         }
         const next = new URL(response.headers.get("location")!, url);
@@ -361,7 +406,7 @@ export function createHttp(
         continue;
       }
 
-      const text = await readCapped(response, maxBytes, policy.name);
+      const text = await readCapped(response, maxBytes, policy.name, signal);
       if (response.status < 200 || response.status >= 300) {
         throw failure(
           policy.name,

@@ -137,18 +137,45 @@ export function clampImpact(value: number | null | undefined): number | null {
 }
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
+/**
+ * The years a due can fall in. Anything outside is a service's placeholder
+ * for "none" (0000-00-00, an epoch of 0, Go's year 1), not a deadline, and
+ * as one it would sit overdue at the top of every list.
+ */
+const FIRST_DUE_YEAR = 2000;
+const LAST_DUE_YEAR = 2199;
+
+/** A real calendar day, "2026-11-20": not an impossible one ("2026-02-31", which a Date quietly makes March 3) or a placeholder. */
+export function isDueDay(value: unknown): value is string {
+  if (typeof value !== "string" || !DAY.test(value)) return false;
+  const [y, m, d] = value.split("-").map(Number);
+  const day = new Date(Date.UTC(y, m - 1, d));
+  return (
+    y >= FIRST_DUE_YEAR &&
+    y <= LAST_DUE_YEAR &&
+    day.getUTCMonth() === m - 1 &&
+    day.getUTCDate() === d
+  );
+}
+
+/** A real moment a due can be, not a placeholder. */
+export function isDueMoment(value: unknown): value is Date {
+  if (!(value instanceof Date) || Number.isNaN(value.getTime())) return false;
+  const year = value.getUTCFullYear();
+  return year >= FIRST_DUE_YEAR && year <= LAST_DUE_YEAR;
+}
 
 /** A due from a service's date ("2026-11-20", or a date-time whose day is what matters). */
 export function dueDay(value: string | null | undefined): Due | null {
   if (!value) return null;
   const day = value.slice(0, 10);
-  return DAY.test(day) ? { date: day } : null;
+  return isDueDay(day) ? { date: day } : null;
 }
 
 /** A due from a service's moment (an ISO time with its offset, or epoch seconds/ms). */
 export function dueAt(value: string | number | null | undefined): Due | null {
   const at = toDate(value);
-  return at ? { at } : null;
+  return isDueMoment(at) ? { at } : null;
 }
 
 /** A Date from an ISO string or an epoch (seconds when it's small, ms otherwise), or null. */

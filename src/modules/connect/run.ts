@@ -6,9 +6,10 @@
  *
  * A failed pull is recorded on the module, in words the connect pane shows,
  * and the next one waits twice as long (up to 12 hours), so a broken token
- * isn't asked about every 15 minutes. A refused token also marks the
- * connection, and every module reading through it waits until it's connected
- * again.
+ * isn't asked about every 15 minutes. A service that asks for longer
+ * (Retry-After) gets that, Read now included. A refused token also marks
+ * the connection, and every module reading through it waits until it's
+ * connected again.
  */
 import type { Prisma } from "@prisma/client";
 
@@ -66,12 +67,28 @@ export function pullWait(spec: ConnectSpec, failures: number): number {
   );
 }
 
+/** Minutes left of a wait the service asked for (Retry-After), or 0. */
+export function askedWait(
+  sync: { retryAt?: Date | null } | null,
+  now: Date
+): number {
+  const at = sync?.retryAt;
+  return at && at > now
+    ? Math.ceil((at.getTime() - now.getTime()) / 60_000)
+    : 0;
+}
+
 export function isPullDue(
   spec: ConnectSpec,
-  sync: { lastPullAt: Date | null; failures: number } | null,
+  sync: {
+    lastPullAt: Date | null;
+    failures: number;
+    retryAt?: Date | null;
+  } | null,
   now: Date
 ): boolean {
   if (spec.everyMinutes <= 0) return false;
+  if (askedWait(sync, now) > 0) return false;
   if (!sync?.lastPullAt) return true;
   return (
     now.getTime() - sync.lastPullAt.getTime() >= pullWait(spec, sync.failures)
@@ -87,18 +104,23 @@ function asStrings(value: unknown): Record<string, string> {
   );
 }
 
+/** The pull's answer, or a `network` failure once `ms` pass, which also stops every request the pull has going or would send next. */
 function withDeadline<T>(
   work: Promise<T>,
   ms: number,
-  name: string
+  name: string,
+  stop: AbortController
 ): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const late = new Promise<never>((_, reject) => {
-    timer = setTimeout(
-      () =>
-        reject(new ConnectorError("network", `${name} took too long to read`)),
-      ms
-    );
+    timer = setTimeout(() => {
+      const error = new ConnectorError(
+        "network",
+        `${name} took too long to read`
+      );
+      stop.abort(error);
+      reject(error);
+    }, ms);
   });
   return Promise.race([work, late]).finally(() => clearTimeout(timer));
 }
@@ -136,6 +158,15 @@ export async function runPull(
   const before = await prisma.moduleSync.findUnique({
     where: { userId_moduleId: { userId, moduleId } },
   });
+  const asked = askedWait(before, now);
+  if (asked > 0) {
+    // Asking again early only earns another refusal, and may stretch the wait.
+    const name = spec.service?.name ?? moduleById(moduleId).name;
+    return {
+      ran: false,
+      problem: `${name} asked Sigwald to wait. It can read again in ${asked} min.`,
+    };
+  }
   if (!options.force && !isPullDue(spec, before, now)) return { ran: false };
 
   // One pull per module at a time, from fetch to write: an older answer
@@ -227,8 +258,10 @@ async function pullClaimed(
     where: { userId, moduleId, state: "open" },
     select: { externalId: true, kind: true, title: true },
   });
+  const stop = new AbortController();
   const http = createHttp(
-    service ? policyFor(service, config) : NOTHING_LEAVES
+    service ? policyFor(service, config) : NOTHING_LEAVES,
+    { signal: stop.signal }
   );
   const maxOpen =
     typeof settings.maxOpen === "number"
@@ -253,7 +286,8 @@ async function pullClaimed(
         lastSuccessAt: sync?.lastSuccessAt ?? null,
       }),
       PULL_DEADLINE_MS,
-      name
+      name,
+      stop
     );
     const result = cleanResult(raw);
     const applied = await applyPull(userId, moduleId, result, {
@@ -266,6 +300,7 @@ async function pullClaimed(
       lastSuccessAt: now,
       failures: 0,
       error: null,
+      retryAt: null,
       cursor: (result.cursor ?? null) as Prisma.InputJsonValue,
     });
     logger.info(
@@ -294,10 +329,21 @@ async function pullClaimed(
         data: { error: problem },
       });
     }
+    // The wait a service asked for runs from its answer, not the pull's start.
+    const retryAt =
+      isConnectorError(error) &&
+      error.kind === "rate_limited" &&
+      error.retryAfter
+        ? new Date(
+            newDate().getTime() +
+              Math.min(error.retryAfter * 1000, MAX_BACKOFF_MS)
+          )
+        : null;
     await record(userId, moduleId, {
       lastPullAt: now,
       failures: (sync?.failures ?? 0) + 1,
       error: problem,
+      retryAt,
     });
     logger.error(
       "Module pull failed",

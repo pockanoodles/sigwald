@@ -76,6 +76,19 @@ describe("parseInbox", () => {
     expect(problem({ title: "x", due: "2026-11-20T10:00:00" })).toMatch(
       /due must be a day/
     );
+    // A Date would make these March 3 and the 2027 they roll into.
+    expect(problem({ title: "x", due: "2026-02-31" })).toMatch(
+      /due isn't a real day/
+    );
+    expect(problem({ title: "x", due: "2026-13-45" })).toMatch(
+      /due isn't a real day/
+    );
+    expect(problem({ title: "x", due: "0000-00-00" })).toMatch(
+      /due isn't a real day/
+    );
+    expect(problem({ title: "x", start: "2026-02-31T10:00:00Z" })).toMatch(
+      /start isn't a real time/
+    );
     expect(problem({ title: "x", url: "javascript:alert(1)" })).toMatch(/url/);
     expect(problem({ title: "x", priority: "asap" })).toMatch(/priority/);
     expect(problem({ title: "x", id: "has spaces" })).toMatch(/id/);
