@@ -4,6 +4,15 @@ Sigwald's changes are listed here, newest first. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+### Added
+
+- **The marketplace:** `/modules` lists every module on a shelf (Engineering, Projects, Design & media, Writing, Research, Clients, Money & hours, Learning, Health, People & career, Calendar & place, Bring your own), searchable by name, service and who it's for, with the selected module's account, settings, reads and holdings in its pane. Every new module is in beta and off until you turn it on.
+- **Connector modules** (`src/modules/connect`): a module that reads another service declares the service, what it makes (tasks, calendar events, daily numbers) and its settings as plain data, and supplies one pull. Sigwald keeps the connection (checked with the service before it's kept, encrypted at rest), reads it on a schedule with backoff, finishes a task when the work is done at the source (so goals earn for it), closes one that's gone undone, never makes again a task you deleted, and holds new work back past a per-module limit. Migration `20261111120000_connector_modules`.
+- **One way out:** every connector request goes through `src/lib/connectors/egress.ts`, which allows only the hosts a service names, GET unless the service reads with POST (never a GraphQL mutation), public addresses only for anything typed in (checked at each redirect), and caps time, size and requests. `SIGWALD_CONNECTORS=off` refuses all of them.
+- **First modules on it:** GitHub, Linear, Stripe, Golden hour, Inbox, Readouts, Deadline feed and Spreadsheet, with more on every shelf.
+- **Readouts:** one page of every number the modules read, with its change over a day, a week and a month.
+- **Inbox:** a private address that Zapier, Make, n8n, a shortcut or a script can POST work to. Only a fingerprint of the address is stored, and erasing your data removes it.
+
 ## [1.0.0] - 2026-10-31
 
 Sigwald reads your calendar, your Canvas courses and your goals, then tells you the one thing to do next.
