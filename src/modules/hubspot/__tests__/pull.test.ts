@@ -166,7 +166,10 @@ describe("pullHubspot", () => {
       state: "done",
       doneAt: new Date("2026-11-11T12:00:00.000Z"),
     });
-    expect(result.items.some((i) => i.externalId === "8")).toBe(false);
+    // Not done and, by a complete list, not yours any more: gone, said of it.
+    expect(result.items).toContainEqual(
+      expect.objectContaining({ externalId: "8", state: "gone" })
+    );
     expect(calls[1].body).toContain('"values":["9","8"]');
   });
 

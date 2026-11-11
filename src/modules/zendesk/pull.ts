@@ -55,31 +55,50 @@ export function toTask(
   };
 }
 
+/** Held items looked up per pull, at most. */
+const MAX_CHECKS = 100;
+
 export const pullZendesk: PullFn = async (ctx) => {
   const { http, secret, config, now } = ctx;
   const { tickets, complete } = await assignedOpen(http, secret, config);
   const open = tickets.map((t) => toTask(t, config));
   const seen = new Set(open.map((t) => t.externalId));
-  const missing = new Map(
-    ctx.open
-      .filter((o) => o.kind === "task" && !seen.has(o.externalId))
-      .slice(0, 100)
-      .map((o) => [o.externalId, o.title])
+  // Held items that dropped off the open list, a batch at a time: each one
+  // checked is said to be done or gone, so it leaves the open set and the
+  // next pull checks the next batch.
+  const missingAll = ctx.open.filter(
+    (o) => o.kind === "task" && !seen.has(o.externalId)
   );
+  const missing = new Map(
+    missingAll.slice(0, MAX_CHECKS).map((o) => [o.externalId, o.title])
+  );
+  const listComplete = complete;
+  const whole = listComplete && missingAll.length <= MAX_CHECKS;
   const finished: PulledTask[] = [];
   for (const t of await ticketsById(http, secret, config, [
     ...missing.keys(),
   ])) {
-    const title = missing.get(String(t.id));
+    const id = String(t.id);
+    const title = missing.get(id);
     if (title === undefined) continue;
-    if (t.status !== "solved" && t.status !== "closed") continue;
+    // Solved by whoever it was reassigned to isn't yours to count.
+    if (t.assignee_id != null && String(t.assignee_id) !== config.userId)
+      continue;
+    if (!(t.status === "solved" || t.status === "closed")) continue;
+    missing.delete(id);
     finished.push({
       kind: "task",
-      externalId: String(t.id),
+      externalId: id,
       title,
       state: "done",
       doneAt: toDate(t.updated_at) ?? now,
     });
   }
-  return { items: [...open, ...finished], complete };
+  // The rest of the batch isn't done and, by a complete list, isn't yours.
+  if (listComplete) {
+    for (const [externalId, title] of missing) {
+      finished.push({ kind: "task", externalId, title, state: "gone" });
+    }
+  }
+  return { items: [...open, ...finished], complete: whole };
 };

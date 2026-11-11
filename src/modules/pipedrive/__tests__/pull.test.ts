@@ -172,6 +172,13 @@ describe("pullPipedrive", () => {
         state: "done",
         doneAt: new Date("2026-11-11T12:00:00.000Z"),
       },
+      // Not done and, by a complete list, not yours any more: gone.
+      {
+        kind: "task",
+        externalId: "8",
+        title: "Call: Dropped eight",
+        state: "gone",
+      },
     ]);
     expect(calls[1].url).toContain("ids=9%2C8");
     expect(calls[1].url).toContain("done=true");
@@ -205,7 +212,7 @@ describe("pullPipedrive", () => {
     const result = await pullPipedrive(ctx(http));
     expect(result.complete).toBe(true);
     expect(result.items[0]).toMatchObject({
-      group: { key: "pipedrive:activities" },
+      group: { key: "pipedrive:deal:11", label: "Deal 11" },
     });
   });
 

@@ -55,12 +55,24 @@ export const pullCalendly: PullFn = async (ctx) => {
   const active = await eventsIn(http, secret, userUri, "active", from, to);
   let complete = active.complete;
 
+  // Who booked each coming meeting, kept between pulls (the cursor), so a
+  // pull reads only the meetings it hasn't seen and a failed read never
+  // takes a name away.
+  const known = namesFrom(ctx.cursor);
   const names = new Map<string, string[]>();
   if (setting.on(ctx.settings, "names")) {
-    const coming = active.events
-      .filter((e) => (toDate(e.end_time)?.getTime() ?? 0) > now.getTime())
-      .slice(0, MAX_NAME_READS);
+    const coming = active.events.filter(
+      (e) => (toDate(e.end_time)?.getTime() ?? 0) > now.getTime()
+    );
+    let reads = 0;
     for (const e of coming) {
+      const had = known[e.uri];
+      if (had) {
+        names.set(e.uri, had);
+        continue;
+      }
+      if (reads >= MAX_NAME_READS) continue;
+      reads += 1;
       try {
         names.set(e.uri, await inviteeNames(http, secret, e.uri));
       } catch (error) {
@@ -96,5 +108,17 @@ export const pullCalendly: PullFn = async (ctx) => {
       if (event) items.push({ ...event, state: "done" });
     }
   }
-  return { items, complete };
+  return { items, complete, cursor: { names: Object.fromEntries(names) } };
 };
+
+/** The names a previous pull kept, by event uri. */
+function namesFrom(cursor: unknown): Record<string, string[]> {
+  const kept = (cursor as { names?: unknown } | null)?.names;
+  if (!kept || typeof kept !== "object" || Array.isArray(kept)) return {};
+  return Object.fromEntries(
+    Object.entries(kept as Record<string, unknown>).filter(
+      (e): e is [string, string[]] =>
+        Array.isArray(e[1]) && e[1].every((n) => typeof n === "string")
+    )
+  );
+}

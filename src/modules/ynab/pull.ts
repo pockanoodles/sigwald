@@ -27,6 +27,7 @@ export const pullYnab: PullFn = async ({
 }) => {
   const budget = setting.text(settings, "budget").trim() || "last-used";
   const firstDay = `${dayIn(now, timeZone).slice(0, 7)}-01`;
+  const coverMonth = firstDay.slice(0, 7);
   const group = {
     key: `ynab:budget:${budget.toLowerCase()}`,
     label: "YNAB budget",
@@ -87,7 +88,9 @@ export const pullYnab: PullFn = async ({
   const overspent = new Set<string>();
   for (const c of thisMonth.categories) {
     if (c.deleted || c.hidden || c.balance >= 0) continue;
-    const externalId = `cover:${c.id}`;
+    // Keyed by month: overspending resets when the month turns, which isn't
+    // the person covering it.
+    const externalId = `cover:${coverMonth}:${c.id}`;
     overspent.add(externalId);
     items.push({
       kind: "task",
@@ -101,9 +104,22 @@ export const pullYnab: PullFn = async ({
       facts: [{ label: "Short by", value: (-c.balance / 1000).toFixed(2) }],
     });
   }
-  for (const o of open)
-    if (o.externalId.startsWith("cover:") && !overspent.has(o.externalId))
+  for (const o of open) {
+    if (!o.externalId.startsWith("cover:") || overspent.has(o.externalId))
+      continue;
+    if (o.externalId.startsWith(`cover:${coverMonth}:`)) {
+      // Still this month and no longer overspent: covered.
       finish(o.externalId);
+    } else {
+      // Last month's: the month ended, nobody covered it.
+      items.push({
+        kind: "task",
+        externalId: o.externalId,
+        title: o.title,
+        state: "gone",
+      });
+    }
+  }
 
   return { items, complete: true, readings };
 };

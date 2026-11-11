@@ -132,7 +132,7 @@ describe("pullHarvest", () => {
     expect(calls.every((c) => c.method === "GET")).toBe(true);
   });
 
-  it("finishes a held invoice once it is paid, and leaves it alone while open", async () => {
+  it("finishes a held invoice once it is paid; one open but no longer overdue has nothing to chase", async () => {
     const { http } = fakeServiceHttp(HARVEST, [
       { url: `${API}/time_entries`, json: entries },
       { url: `${API}/invoices?`, json: { invoices: [], next_page: null } },
@@ -160,6 +160,12 @@ describe("pullHarvest", () => {
         title: "Chase invoice 7 (Acme)",
         state: "done",
         doneAt: new Date("2026-11-10T09:00:00Z"),
+      },
+      {
+        kind: "task",
+        externalId: "81",
+        title: "Chase invoice 8 (Acme)",
+        state: "gone",
       },
     ]);
     expect(result.complete).toBe(true);

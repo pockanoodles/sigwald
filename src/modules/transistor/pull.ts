@@ -8,6 +8,8 @@
  * publish time. Transistor's analytics has no all-shows endpoint, so the
  * reading sums one call per show (at most 8 shows).
  */
+import { isConnectorError } from "@/lib/connectors/errors";
+import { paced } from "@/lib/connectors/pace";
 import {
   type TransistorEpisode,
   type TransistorShow,
@@ -28,8 +30,11 @@ import {
 } from "@/modules/connect/pull";
 import { setting } from "@/modules/connect/settings";
 
-const MAX_LOOKUPS = 20;
-const MAX_SHOWS_FOR_DOWNLOADS = 8;
+/** Held drafts looked up per pull, at most: Transistor takes ten requests in ten seconds. */
+const MAX_LOOKUPS = 5;
+const MAX_SHOWS_FOR_DOWNLOADS = 4;
+/** Transistor's limit is ten requests in ten seconds: one a second, with room. */
+export const REQUEST_GAP_MS = 1_100;
 const RELEASE_MINUTES = 30;
 
 const taskId = (id: string) => `episode:${id}`;
@@ -92,105 +97,131 @@ function ddmmyyyy(day: string): string {
   return `${d}-${m}-${y}`;
 }
 
-export const pullTransistor: PullFn = async (ctx) => {
-  const { http, secret, settings, now, timeZone } = ctx;
-  const only = setting.text(settings, "show").trim();
-  let complete = true;
+/** The pull, its requests spaced `gapMs` apart (tests pass 0). */
+export function transistorPull(gapMs: number): PullFn {
+  return async (ctx) => {
+    const { secret, settings, now, timeZone } = ctx;
+    const http = paced(ctx.http, gapMs);
+    const only = setting.text(settings, "show").trim();
+    let complete = true;
 
-  const allShows = await listShows(http, secret);
-  if (!allShows.complete) complete = false;
-  const shows: TransistorShow[] = only
-    ? allShows.data.filter((s) => s.id === only || s.attributes.slug === only)
-    : allShows.data;
-  const titles = new Map(
-    shows.map((s) => [s.id, s.attributes.title ?? "Podcast"])
-  );
-  // Asked of Transistor by the id it knows the show by, even when the setting was a slug.
-  const showId = only ? (shows[0]?.id ?? only) : undefined;
+    const allShows = await listShows(http, secret);
+    if (!allShows.complete) complete = false;
+    const shows: TransistorShow[] = only
+      ? allShows.data.filter((s) => s.id === only || s.attributes.slug === only)
+      : allShows.data;
+    const titles = new Map(
+      shows.map((s) => [s.id, s.attributes.title ?? "Podcast"])
+    );
+    // Asked of Transistor by the id it knows the show by, even when the setting was a slug.
+    const showId = only ? (shows[0]?.id ?? only) : undefined;
 
-  const [drafts, scheduled] = await Promise.all([
-    listEpisodes(http, secret, "draft", showId),
-    listEpisodes(http, secret, "scheduled", showId),
-  ]);
-  if (!drafts.complete || !scheduled.complete) complete = false;
+    const [drafts, scheduled] = await Promise.all([
+      listEpisodes(http, secret, "draft", showId),
+      listEpisodes(http, secret, "scheduled", showId),
+    ]);
+    if (!drafts.complete || !scheduled.complete) complete = false;
 
-  const items: (PulledTask | PulledEvent)[] = [];
-  const openIds = new Set<string>();
-  for (const episode of drafts.data) {
-    items.push(draftTask(episode, titles));
-    openIds.add(taskId(episode.id));
-  }
-  for (const episode of scheduled.data) {
-    const event = releaseEvent(episode, titles);
-    if (event) items.push(event);
-  }
-
-  // Held drafts that left the draft list: finished if they are published now.
-  const missing = ctx.open
-    .filter(
-      (o) =>
-        o.kind === "task" &&
-        o.externalId.startsWith("episode:") &&
-        !openIds.has(o.externalId)
-    )
-    .slice(0, MAX_LOOKUPS);
-  const unchecked = ctx.open.filter(
-    (o) =>
-      o.kind === "task" &&
-      o.externalId.startsWith("episode:") &&
-      !openIds.has(o.externalId)
-  ).length;
-  if (unchecked > MAX_LOOKUPS) complete = false;
-  for (const held of missing) {
-    try {
-      const episode = await getEpisode(
-        http,
-        secret,
-        held.externalId.slice("episode:".length)
-      );
-      if (episode?.attributes.status === "published") {
-        items.push({
-          kind: "task",
-          externalId: held.externalId,
-          title: held.title,
-          state: "done",
-          doneAt: transistorTime(episode.attributes.published_at) ?? now,
-        });
-      }
-    } catch {
-      complete = false;
+    const items: (PulledTask | PulledEvent)[] = [];
+    const openIds = new Set<string>();
+    for (const episode of drafts.data) {
+      items.push(draftTask(episode, titles));
+      openIds.add(taskId(episode.id));
     }
-  }
+    for (const episode of scheduled.data) {
+      const event = releaseEvent(episode, titles);
+      if (event) items.push(event);
+    }
 
-  const readings: PulledReading[] = [];
-  const end = dayIn(now, timeZone);
-  const start = shiftDay(end, -29);
-  if (shows.length > 0) {
-    const counted = shows.slice(0, MAX_SHOWS_FOR_DOWNLOADS);
-    if (shows.length > counted.length) complete = false;
-    try {
-      let total = 0;
-      for (const show of counted) {
-        total += await showDownloads(
+    // Held drafts that left the draft list have been written: scheduled or
+    // published, their task is done. A deleted one is gone; only a failure to
+    // ask leaves the pull partial.
+    const held = new Map(
+      ctx.open
+        .filter(
+          (o) =>
+            o.kind === "task" &&
+            o.externalId.startsWith("episode:") &&
+            !openIds.has(o.externalId)
+        )
+        .map((o) => [o.externalId, o.title])
+    );
+    for (const episode of scheduled.data) {
+      const title = held.get(taskId(episode.id));
+      if (title === undefined) continue;
+      held.delete(taskId(episode.id));
+      items.push({
+        kind: "task",
+        externalId: taskId(episode.id),
+        title,
+        state: "done",
+        doneAt: now,
+      });
+    }
+    if (held.size > MAX_LOOKUPS) complete = false;
+    for (const [externalId, title] of [...held].slice(0, MAX_LOOKUPS)) {
+      try {
+        const episode = await getEpisode(
           http,
           secret,
-          show.id,
-          ddmmyyyy(start),
-          ddmmyyyy(end)
+          externalId.slice("episode:".length)
         );
+        const status = episode?.attributes.status;
+        if (status === "published" || status === "scheduled") {
+          items.push({
+            kind: "task",
+            externalId,
+            title,
+            state: "done",
+            doneAt:
+              (status === "published"
+                ? transistorTime(episode!.attributes.published_at)
+                : null) ?? now,
+          });
+        } else if (!episode) {
+          items.push({ kind: "task", externalId, title, state: "gone" });
+        }
+      } catch (error) {
+        if (isConnectorError(error) && error.kind === "not_found") {
+          items.push({ kind: "task", externalId, title, state: "gone" });
+        } else {
+          complete = false;
+        }
       }
-      if (shows.length === counted.length) {
-        readings.push({
-          key: "downloads30",
-          label: "Downloads, 30 days",
-          value: total,
-          unit: "count",
-        });
-      }
-    } catch {
-      complete = false;
     }
-  }
 
-  return { items, complete, readings };
-};
+    const readings: PulledReading[] = [];
+    const end = dayIn(now, timeZone);
+    const start = shiftDay(end, -29);
+    if (shows.length > 0) {
+      const counted = shows.slice(0, MAX_SHOWS_FOR_DOWNLOADS);
+      if (shows.length > counted.length) complete = false;
+      try {
+        let total = 0;
+        for (const show of counted) {
+          total += await showDownloads(
+            http,
+            secret,
+            show.id,
+            ddmmyyyy(start),
+            ddmmyyyy(end)
+          );
+        }
+        if (shows.length === counted.length) {
+          readings.push({
+            key: "downloads30",
+            label: "Downloads, 30 days",
+            value: total,
+            unit: "count",
+          });
+        }
+      } catch {
+        complete = false;
+      }
+    }
+
+    return { items, complete, readings };
+  };
+}
+
+export const pullTransistor: PullFn = transistorPull(REQUEST_GAP_MS);

@@ -109,7 +109,12 @@ export function timeEntries(
     config,
     "/time_entries",
     "time_entries",
-    { from, to, per_page: 2000, user_id: config.userId ?? "" }
+    {
+      from,
+      to,
+      per_page: 2000,
+      ...(config.userId ? { user_id: config.userId } : {}),
+    }
   );
 }
 

@@ -62,6 +62,9 @@ export function toTask(task: HubspotTask, ownerId: string): PulledTask {
   };
 }
 
+/** Held items looked up per pull, at most. */
+const MAX_CHECKS = 100;
+
 export const pullHubspot: PullFn = async (ctx) => {
   const { http, secret, config, now } = ctx;
   const ownerId = config.ownerId;
@@ -70,19 +73,29 @@ export const pullHubspot: PullFn = async (ctx) => {
   const { tasks, complete } = await openTasks(http, secret, ownerId);
   const open = tasks.map((t) => toTask(t, ownerId));
   const seen = new Set(open.map((t) => t.externalId));
-  const missing = new Map(
-    ctx.open
-      .filter((o) => o.kind === "task" && !seen.has(o.externalId))
-      .slice(0, 100)
-      .map((o) => [o.externalId, o.title])
+  // Held items that dropped off the open list, a batch at a time: each one
+  // checked is said to be done or gone, so it leaves the open set and the
+  // next pull checks the next batch.
+  const missingAll = ctx.open.filter(
+    (o) => o.kind === "task" && !seen.has(o.externalId)
   );
+  const missing = new Map(
+    missingAll.slice(0, MAX_CHECKS).map((o) => [o.externalId, o.title])
+  );
+  const listComplete = complete;
+  const whole = listComplete && missingAll.length <= MAX_CHECKS;
   const finished: PulledTask[] = [];
   for (const task of await completedAmong(http, secret, [...missing.keys()])) {
-    const title = missing.get(task.id);
+    const id = task.id;
+    const title = missing.get(id);
     if (title === undefined) continue;
+    // Completed by whoever it was reassigned to isn't yours to count.
+    const owner = task.properties.hubspot_owner_id;
+    if (owner && owner !== ownerId) continue;
+    missing.delete(id);
     finished.push({
       kind: "task",
-      externalId: task.id,
+      externalId: id,
       title,
       state: "done",
       doneAt:
@@ -91,5 +104,11 @@ export const pullHubspot: PullFn = async (ctx) => {
         now,
     });
   }
-  return { items: [...open, ...finished], complete };
+  // The rest of the batch isn't done and, by a complete list, isn't yours.
+  if (listComplete) {
+    for (const [externalId, title] of missing) {
+      finished.push({ kind: "task", externalId, title, state: "gone" });
+    }
+  }
+  return { items: [...open, ...finished], complete: whole };
 };

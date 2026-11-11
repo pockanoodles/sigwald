@@ -121,7 +121,7 @@ describe("pullYnab", () => {
       group: { key: "ynab:budget:last-used" },
     });
     expect(result.items[1]).toMatchObject({
-      externalId: "cover:c1",
+      externalId: "cover:2026-11:c1",
       title: "Cover Groceries",
       state: "open",
     });
@@ -143,7 +143,13 @@ describe("pullYnab", () => {
           kind: "task",
           title: "Approve 3 transactions",
         },
-        { externalId: "cover:c1", kind: "task", title: "Cover Groceries" },
+        {
+          externalId: "cover:2026-11:c1",
+          kind: "task",
+          title: "Cover Groceries",
+        },
+        // Last month's, never covered: the month turned, not the person.
+        { externalId: "cover:2026-10:c9", kind: "task", title: "Cover Dining" },
         { externalId: "other", kind: "task", title: "Untouched" },
       ])
     );
@@ -157,10 +163,16 @@ describe("pullYnab", () => {
       },
       {
         kind: "task",
-        externalId: "cover:c1",
+        externalId: "cover:2026-11:c1",
         title: "Cover Groceries",
         state: "done",
         doneAt: now,
+      },
+      {
+        kind: "task",
+        externalId: "cover:2026-10:c9",
+        title: "Cover Dining",
+        state: "gone",
       },
     ]);
   });
