@@ -2,10 +2,10 @@ import { fakeServiceHttp } from "@/lib/connectors/__tests__/fake-http";
 import { verifyGithub } from "@/lib/connectors/github/client";
 import { GITHUB } from "@/lib/connectors/github/service";
 
-import type { PullContext } from "@/modules/connect/pull";
+import { type PullContext, impactFromLabels } from "@/modules/connect/pull";
 import { resolveSettings } from "@/modules/connect/settings";
 import github from "@/modules/github/manifest";
-import { impactFromLabels, pullGithub } from "@/modules/github/pull";
+import { pullGithub } from "@/modules/github/pull";
 
 const now = new Date("2026-11-11T15:00:00.000Z");
 const SEARCH = "https://api.github.com/search/issues";

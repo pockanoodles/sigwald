@@ -188,3 +188,28 @@ export function fact(
   if (value === null || value === undefined || value === "") return [];
   return [{ label, value: String(value) }];
 }
+
+/**
+ * What labels or a priority name say about how much something matters, if
+ * they say anything: "P0", "urgent", "Highest" are 0.9, "high" 0.7,
+ * "medium" 0.4, "low" 0.15. `fallback` when nothing matches.
+ */
+export function impactFromLabels(
+  labels: readonly string[],
+  fallback: number | null = null
+): number | null {
+  const text = labels.join(" ").toLowerCase();
+  if (
+    /\b(p0|sev[- ]?0|sev[- ]?1|critical|urgent|blocker|highest|security)\b/.test(
+      text
+    )
+  ) {
+    return 0.9;
+  }
+  if (/\b(p1|high|important|priority)\b/.test(text)) return 0.7;
+  if (/\b(p2|medium|normal)\b/.test(text)) return 0.4;
+  if (/\b(p3|p4|low|lowest|minor|nice[- ]to[- ]have|someday)\b/.test(text)) {
+    return 0.15;
+  }
+  return fallback;
+}
