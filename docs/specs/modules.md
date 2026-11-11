@@ -1,6 +1,6 @@
 # Modules
 
-Sigwald's core is Today, Focus, Calendar, Tasks, Settings and the `/modules` catalog. Everything else is a module that each person turns on or off: today Courses, Ladder, People, Training, Nutrition and Work. The core works with every module off, and it never imports a module. A module adds to the core through fixed slots, listed in four registries under `src/modules/`.
+Sigwald's core is Today, Focus, Calendar, Tasks, Settings and the `/modules` marketplace. Everything else is a module that each person turns on or off: Courses, Ladder, People, Training, Nutrition, Work and Code, and the connector modules that read other services (below). The core works with every module off, and it never imports a module. A module adds to the core through fixed slots, listed in four registries under `src/modules/`.
 
 ## What a module is made of
 
@@ -11,6 +11,8 @@ A module is split three ways so the browser bundle never pulls in server code.
 | Field | What it is |
 |---|---|
 | `id`, `name`, `summary` | How the catalog names it. The id is one of `ModuleId` in `src/modules/types.ts`. |
+| `shelf`, `madeFor` | Its shelf in the marketplace (`src/modules/shelves.ts`) and who it's made for, which the marketplace's search reads. |
+| `connect` | Set for a connector module (below). |
 | `defaultOn` | Whether it's on for someone who never touched it. |
 | `page` | Its one entry in the rail: a path and the words ⌘K finds it by. |
 | `sources` | The `Task.source` values it owns. While it's off, those tasks leave every list. |
@@ -76,6 +78,35 @@ Turning a module off deletes nothing. While it's off:
 
 Two rules keep the bundles apart. `src/modules/index.ts` and the manifests are plain data, safe in the browser, and `server.ts` and `hooks.ts` are server only. `src/modules/state.ts` has no Next.js imports, so the sync worker can load it.
 
+## Connector modules
+
+A connector module reads one outside service (GitHub, Linear, Stripe, a public calendar link) and turns what it finds into Sigwald's own shapes: tasks, calendar events and daily readings. It is three small files, and the framework in `src/modules/connect/` does the rest.
+
+**The service** (`src/lib/connectors/<service>/service.ts`, plain data) names the service, the connect form's fields (a `secret` is stored encrypted and never sent to the browser), where it may be reached (`HostRule`: fixed hosts, the address the person types, or any public address), whether it reads with POST (a GraphQL API), and its `egress` line. Its `client.ts` holds the calls, made through the `Http` it is handed, and a `verify` (one cheap "who am I" read, listed in `src/lib/connectors/verifiers.ts`) that runs before a connection is kept.
+
+**The manifest's `connect`** (`ConnectSpec` in `src/modules/connect/spec.ts`) says which service it reads through (or none: Golden hour works its answer out locally, Inbox is sent things), what it `makes`, how often it reads, and its settings as plain fields, from which the marketplace pane draws its form.
+
+**The pull** (`src/modules/<id>/pull.ts`) is one function: given an `Http` that can reach only its service, the connection's fields and its settings, it answers with what it saw (`PullResult`). It never touches the database, so a test runs it against recorded answers (`fakeServiceHttp`), through the real egress. Its entry in each registry is one line: `connectorServer(id, pull)` and `connectorClient(id)`.
+
+What the framework does with an answer (`src/modules/connect/plan.ts`):
+
+- Each thing read is mirrored once (`ModuleItem`) and its task or event is a projection of the mirror, the way a Work shift is the truth behind its calendar event. Events go on a LOCAL calendar per module.
+- Seen open, a task is kept in step with the source (title, due, link, `impact`, claims). Seen done, it is finished at the source's time, so the goals that claim it earn for it. Not seen when the pull vouched for everything (`complete`), it has gone and its task is closed undone (`closedAt`).
+- A done report only finishes: it never restates the rest of the item.
+- A task finished by hand stays finished; one deleted by hand is never made again.
+- New work waits while a module's open tasks fill its `maxOpen`, in the order the pull gave it.
+- Its `group` and labelled `claims` become claims the goal form offers; `Task.claims` carries them, so goal rules need nothing more.
+- A day-only due is due at the end of that day in the person's zone, like every module's.
+- Readings are one row per key per day (`ModuleReading`); Readouts shows them all.
+
+The sync loop runs each connector module's pull when it's due; a failure is recorded on the module in plain words and the next wait doubles, up to 12 hours. A refused token marks the connection, and every module that reads through it waits until it's connected again.
+
+**One way out.** Every request goes through `src/lib/connectors/egress.ts`: only the hosts the service names (an address someone typed must resolve to a public one, at every redirect), GET unless the service reads with POST and never a GraphQL mutation, 20 seconds, 8 MB and 60 requests a pull at most. `SIGWALD_CONNECTORS=off` refuses all of it. `src/modules/connect/__tests__/catalog.test.ts` keeps the rules: nothing else under `src/lib/connectors` or a connector module calls `fetch`, every module is beta and off until turned on, every account has a verify, and every service and fixed host is named in `DATAFLOW.md`.
+
+## The marketplace
+
+`/modules` lists every module as a datasheet in catalog order (finished modules first), searchable by name, service and who it's for, narrowed by shelf or to what's on, with the selected module whole in the reading pane. A connector module's pane holds its account, settings, reading state, numbers and what it holds.
+
 ## Adding a module
 
 1. Add its id to `ModuleId`, write its manifest, and add it to `MODULES`.
@@ -84,6 +115,8 @@ Two rules keep the bundles apart. `src/modules/index.ts` and the manifests are p
 4. Fill the slots and hooks it needs in `client.tsx` and `server.ts`. If it owns tasks, give them their own `source`, list it in `sources`, and set `impact` on them if they have stakes.
 5. Add its paths to `OWNED` in the boundary test.
 6. If it sends anything out of Sigwald, list it in the manifest's `egress` and in `DATAFLOW.md`.
+
+A connector module needs only its service (`src/lib/connectors/<service>/`), its manifest with `connect`, its pull and its tests: no tables, routes or components of its own. GitHub (`src/modules/github/`) is the reference for a work queue, Linear for a GraphQL service, Stripe for readings, Golden hour for one that reaches nothing.
 
 People (`src/modules/people/`) is a complete small module: a page, its own tables, a job, tasks it owns, and a source goals can claim. Training adds claims per routine (`claimOptions`, `claimKeys`) and draws its own tasks in Focus and the task sheet (`TaskBody`, `TaskPane`). Nutrition owns no tasks at all: a page, its tables and a count in the top bar (`Status`). Work takes data from outside through its own API (a schedule week, a contact roster, `src/modules/work/imports.ts`) and puts its shifts on the calendar through a LOCAL feed per job, which it keeps in step itself (`src/modules/work/feed.ts`), so the calendar and the scheduler see them without knowing the module exists.
 
