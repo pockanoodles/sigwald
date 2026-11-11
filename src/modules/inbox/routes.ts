@@ -151,25 +151,25 @@ export async function receive(
       return NextResponse.json({ error: parsed.problem }, { status: 400 });
 
     // What's still asked of the person: open here and not yet done by hand
-    // (or, for a time, not yet over). A retry or an update of something
-    // already sent adds nothing.
-    const active = await prisma.moduleItem.count({
-      where: {
-        userId: link.userId,
-        moduleId: MODULE,
-        state: "open",
-        OR: [
-          { task: { status: { not: "completed" }, closedAt: null } },
-          { event: { end: { gte: now } } },
-        ],
-      },
-    });
-    const known = new Set(
+    // (or, for a time, not yet over).
+    const activeWhere = {
+      userId: link.userId,
+      moduleId: MODULE,
+      state: "open",
+      OR: [
+        { task: { status: { not: "completed" }, closedAt: null } },
+        { event: { end: { gte: now } } },
+      ],
+    };
+    const active = await prisma.moduleItem.count({ where: activeWhere });
+    // Sending something already active again (a retry, an update) adds
+    // nothing; anything else sent open adds one, a finished item reopened
+    // included.
+    const alreadyActive = new Set(
       (
         await prisma.moduleItem.findMany({
           where: {
-            userId: link.userId,
-            moduleId: MODULE,
+            ...activeWhere,
             externalId: { in: parsed.items.map((i) => i.externalId) },
           },
           select: { externalId: true },
@@ -177,12 +177,13 @@ export async function receive(
       ).map((i) => i.externalId)
     );
     const adding = parsed.items.filter(
-      (i) => i.state === "open" && !known.has(i.externalId)
+      (i) => i.state === "open" && !alreadyActive.has(i.externalId)
     ).length;
-    if (active + adding > MAX_OPEN_ITEMS) {
+    // Finishing things is always taken, so a full Inbox can be emptied.
+    if (adding > 0 && active + adding > MAX_OPEN_ITEMS) {
       return NextResponse.json(
         {
-          error: `The Inbox holds ${open} open items; finish some before sending more`,
+          error: `The Inbox holds ${active} open items; finish some before sending more`,
         },
         { status: 429 }
       );

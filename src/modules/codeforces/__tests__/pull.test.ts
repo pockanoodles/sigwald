@@ -2,9 +2,11 @@ import { fakeServiceHttp } from "@/lib/connectors/__tests__/fake-http";
 import { CODEFORCES } from "@/lib/connectors/codeforces/service";
 
 import codeforces from "@/modules/codeforces/manifest";
-import { pullCodeforces } from "@/modules/codeforces/pull";
+import { codeforcesPull } from "@/modules/codeforces/pull";
 import type { PullContext, PulledEvent } from "@/modules/connect/pull";
 import { resolveSettings } from "@/modules/connect/settings";
+
+const pullCodeforces = codeforcesPull(0);
 
 const now = new Date("2026-11-11T15:00:00.000Z");
 const ctx = (
@@ -110,5 +112,55 @@ describe("pullCodeforces", () => {
       kind: "config",
       message: expect.stringContaining("not found"),
     });
+  });
+});
+
+describe("Codeforces' call limit", () => {
+  it("leaves its gap between the round list and the rating", async () => {
+    const times: number[] = [];
+    const { http } = fakeServiceHttp(CODEFORCES, [
+      {
+        url: "https://codeforces.com/api/contest.list",
+        json: { status: "OK", result: [] },
+      },
+      {
+        url: "https://codeforces.com/api/user.info",
+        json: { status: "OK", result: [{ handle: "x", rating: 1 }] },
+      },
+    ]);
+    const timed = {
+      ...http,
+      json: async <T>(req: Parameters<typeof http.json>[0]) => {
+        times.push(Date.now());
+        return http.json<T>(req);
+      },
+    } as typeof http;
+    await codeforcesPull(120)(ctx(timed, { handle: "tourist" }));
+    expect(times).toHaveLength(2);
+    expect(times[1] - times[0]).toBeGreaterThanOrEqual(110);
+  });
+
+  it("keeps a round that's under way on the calendar", async () => {
+    const { http } = fakeServiceHttp(CODEFORCES, [
+      {
+        url: "https://codeforces.com/api/contest.list",
+        json: {
+          status: "OK",
+          result: [
+            {
+              id: 9,
+              name: "Live round",
+              type: "CF",
+              phase: "CODING",
+              frozen: false,
+              durationSeconds: 7200,
+              startTimeSeconds: at("2026-11-11T14:35:00Z"),
+            },
+          ],
+        },
+      },
+    ]);
+    const result = await pullCodeforces(ctx(http, {}));
+    expect(result.items.map((i) => i.title)).toEqual(["Live round"]);
   });
 });

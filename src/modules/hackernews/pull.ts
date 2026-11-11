@@ -26,6 +26,8 @@ interface Hit {
   _tags?: string[];
 }
 
+const PAGE = 50;
+
 export const pullHackernews: PullFn = async ({ http, settings, now }) => {
   const words = setting.list(settings, "words");
   const kinds = setting.text(settings, "kinds").split(",").filter(Boolean);
@@ -35,6 +37,9 @@ export const pullHackernews: PullFn = async ({ http, settings, now }) => {
 
   const items: PulledTask[] = [];
   const seen = new Set<string>();
+  // Every hit is inside the window (the search asks for that), so a full
+  // page may have left some out: then nothing can be called gone.
+  let complete = true;
   for (const word of words) {
     const res = await http.json<{ hits: Hit[]; nbHits?: number }>({
       url: "https://hn.algolia.com/api/v1/search_by_date",
@@ -42,9 +47,10 @@ export const pullHackernews: PullFn = async ({ http, settings, now }) => {
         query: word,
         tags: `(${kinds.join(",")})`,
         numericFilters: `created_at_i>${since}`,
-        hitsPerPage: 50,
+        hitsPerPage: PAGE,
       },
     });
+    if (res.hits.length >= PAGE) complete = false;
     const needle = word.toLowerCase();
     for (const h of res.hits) {
       if (seen.has(h.objectID)) continue;
@@ -82,5 +88,5 @@ export const pullHackernews: PullFn = async ({ http, settings, now }) => {
       });
     }
   }
-  return { items, complete: true };
+  return { items, complete };
 };

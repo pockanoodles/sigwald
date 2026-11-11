@@ -82,3 +82,19 @@ describe("pullHackernews", () => {
     });
   });
 });
+
+describe("a full page of mentions", () => {
+  it("can't vouch for the window", async () => {
+    const full = {
+      hits: Array.from({ length: 50 }, (_, i) => ({
+        ...hits.hits[0],
+        objectID: String(50000 + i),
+      })),
+    };
+    const { http } = fakeServiceHttp(HACKER_NEWS, [
+      { url: "https://hn.algolia.com/api/v1/search_by_date", json: full },
+    ]);
+    const result = await pullHackernews(ctx(http, { words: ["Sigwald"] }));
+    expect(result.complete).toBe(false);
+  });
+});

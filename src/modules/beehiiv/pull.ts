@@ -107,9 +107,17 @@ export const pullBeehiiv: PullFn = async (ctx) => {
     }
   }
 
+  // Confirmed posts come newest send first: scheduled ones, then what went
+  // out lately. Unless the list is whole, it vouches for its events and for
+  // drafts confirmed since the last pull only if it reaches back past that.
+  const oldestSend = confirmed.posts.at(-1)?.publish_date ?? null;
+  const since = (ctx.lastSuccessAt?.getTime() ?? now.getTime()) - 86_400_000;
+  const confirmedCovers =
+    confirmed.complete || (oldestSend !== null && oldestSend * 1000 < since);
+
   return {
     items: [...tasks, ...events, ...finished],
-    complete: drafts.complete,
+    complete: drafts.complete && confirmedCovers,
     readings,
   };
 };

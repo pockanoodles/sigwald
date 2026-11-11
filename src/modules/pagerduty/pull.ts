@@ -110,9 +110,26 @@ export const pullPagerduty: PullFn = async (ctx) => {
             toDate(incident.last_status_change_at) ??
             now,
         });
+      } else if (assigned.complete) {
+        // Still open, and by a complete list no longer on you (reassigned,
+        // escalated past you): gone, said of this one so the next pull
+        // checks the next.
+        finished.push({
+          kind: "task",
+          externalId: held.externalId,
+          title: held.title,
+          state: "gone",
+        });
       }
     } catch (error) {
-      if (!(isConnectorError(error) && error.kind === "not_found")) {
+      if (isConnectorError(error) && error.kind === "not_found") {
+        finished.push({
+          kind: "task",
+          externalId: held.externalId,
+          title: held.title,
+          state: "gone",
+        });
+      } else {
         complete = false;
       }
     }

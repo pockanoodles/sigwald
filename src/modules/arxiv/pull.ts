@@ -20,6 +20,8 @@ export function arxivId(entryId: string): string {
   return m ? m[1] : entryId;
 }
 
+const PAGE = 50;
+
 export const pullArxiv: PullFn = async ({ http, settings, now }) => {
   const query = setting.text(settings, "query");
   const days = setting.number(settings, "days", 4);
@@ -32,7 +34,7 @@ export const pullArxiv: PullFn = async ({ http, settings, now }) => {
         search_query: query,
         sortBy: "submittedDate",
         sortOrder: "descending",
-        max_results: 50,
+        max_results: PAGE,
       },
     })
   );
@@ -68,6 +70,11 @@ export const pullArxiv: PullFn = async ({ http, settings, now }) => {
       updatedAt: e.published,
     });
   }
-  // The window decides what's current: anything older has stepped aside.
-  return { items, complete: true };
+  // The window decides what's current, but only if the answer reached back
+  // past it: a full page still inside the window may have left some out,
+  // and those mustn't close as if they'd aged out.
+  const oldest = feed.entries.at(-1)?.published ?? null;
+  const reachedBack =
+    feed.entries.length < PAGE || (oldest !== null && oldest.getTime() < since);
+  return { items, complete: reachedBack };
 };

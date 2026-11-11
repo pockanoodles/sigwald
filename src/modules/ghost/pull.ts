@@ -19,6 +19,8 @@ import {
   toDate,
 } from "@/modules/connect/pull";
 
+/** Held drafts asked after by id in one pull, at most. */
+const MAX_ASKED = 100;
 const SLOT_MS = 15 * 60_000;
 
 export const pullGhost: PullFn = async (ctx) => {
@@ -70,22 +72,37 @@ export const pullGhost: PullFn = async (ctx) => {
     ];
   });
 
-  // A draft Sigwald holds that is no longer a draft: published means done.
+  // A draft Sigwald holds that is no longer a draft has been written:
+  // scheduled or published, its Finish task is done.
   const listed = new Set(tasks.map((t) => t.externalId));
   const held = new Map(
     ctx.open
       .filter((o) => o.kind === "task" && !listed.has(o.externalId))
       .map((o) => [o.externalId, o.title])
   );
-  const finished: PulledTask[] = (
-    await publishedAmong(http, auth, [...held.keys()].slice(0, 100))
-  ).map((p) => ({
-    kind: "task",
-    externalId: p.id,
-    title: held.get(p.id) ?? `Finish: ${p.title}`,
-    state: "done",
-    doneAt: toDate(p.published_at) ?? now,
-  }));
+  const finished: PulledTask[] = [];
+  for (const p of scheduled.posts) {
+    const title = held.get(p.id);
+    if (title === undefined) continue;
+    held.delete(p.id);
+    finished.push({
+      kind: "task",
+      externalId: p.id,
+      title,
+      state: "done",
+      doneAt: toDate(p.updated_at) ?? now,
+    });
+  }
+  const asked = [...held.keys()].slice(0, MAX_ASKED);
+  for (const p of await publishedAmong(http, auth, asked)) {
+    finished.push({
+      kind: "task",
+      externalId: p.id,
+      title: held.get(p.id) ?? `Finish: ${p.title}`,
+      state: "done",
+      doneAt: toDate(p.published_at) ?? now,
+    });
+  }
 
   const readings: PulledReading[] = [];
   try {
@@ -110,7 +127,7 @@ export const pullGhost: PullFn = async (ctx) => {
 
   return {
     items: [...tasks, ...events, ...finished],
-    complete: drafts.complete && scheduled.complete,
+    complete: drafts.complete && scheduled.complete && held.size <= MAX_ASKED,
     readings,
   };
 };

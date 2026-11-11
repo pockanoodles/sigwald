@@ -117,7 +117,7 @@ describe("pullSentry", () => {
     expect(result.complete).toBe(false);
   });
 
-  it("finishes held issues that were resolved, and drops ones still open", async () => {
+  it("finishes held issues that were resolved, and says the others are gone", async () => {
     const { http, calls } = fakeServiceHttp(SENTRY, [
       { url: `${API}/issues/?`, json: [] },
       { url: `${API}/issues/21/`, json: issue("21", { status: "resolved" }) },
@@ -133,6 +133,8 @@ describe("pullSentry", () => {
         ],
       })
     );
+    // 22 is unresolved but off a complete "assigned to me" search, so it's
+    // someone else's now; 23 was deleted. Both are gone, said one by one.
     expect(result.items).toEqual([
       expect.objectContaining({
         externalId: "21",
@@ -140,6 +142,8 @@ describe("pullSentry", () => {
         state: "done",
         doneAt: now,
       }),
+      { kind: "task", externalId: "22", title: "Fix: B", state: "gone" },
+      { kind: "task", externalId: "23", title: "Fix: C", state: "gone" },
     ]);
     expect(result.complete).toBe(true);
     expect(calls.every((c) => c.method === "GET")).toBe(true);

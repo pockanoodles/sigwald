@@ -94,10 +94,27 @@ export const pullSentry: PullFn = async (ctx) => {
           state: "done",
           doneAt: now,
         });
+      } else if (found.complete) {
+        // Not resolved and, by a complete search, not assigned to you any
+        // more: gone, said of this one so the next pull checks the next.
+        finished.push({
+          kind: "task",
+          externalId: held.externalId,
+          title: held.title,
+          state: "gone",
+        });
       }
     } catch (error) {
-      // A deleted issue is simply gone; any other failure may hide a resolution.
-      if (!(isConnectorError(error) && error.kind === "not_found")) {
+      if (isConnectorError(error) && error.kind === "not_found") {
+        // Deleted: gone.
+        finished.push({
+          kind: "task",
+          externalId: held.externalId,
+          title: held.title,
+          state: "gone",
+        });
+      } else {
+        // Any other failure may hide a resolution.
         complete = false;
       }
     }

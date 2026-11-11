@@ -18,6 +18,8 @@ import {
   plainText,
 } from "@/modules/connect/pull";
 
+/** Held drafts asked after by id in one pull, at most. */
+const MAX_ASKED = 100;
 const SLOT_MS = 15 * 60_000;
 
 function titleOf(post: WpPost): string {
@@ -82,18 +84,33 @@ export const pullWordpress: PullFn = async (ctx) => {
       )
       .map((o) => [o.externalId, o.title])
   );
-  const finished: PulledTask[] = (
-    await publishedAmong(http, auth, [...held.keys()].slice(0, 100).map(Number))
-  ).map((post) => ({
-    kind: "task",
-    externalId: String(post.id),
-    title: held.get(String(post.id)) ?? `Finish: ${titleOf(post)}`,
-    state: "done",
-    doneAt: gmt(post.date_gmt) ?? now,
-  }));
+  // A held draft that's now scheduled has been written: its task is done.
+  const finished: PulledTask[] = [];
+  for (const post of listed.posts) {
+    const title = held.get(String(post.id));
+    if (post.status !== "future" || title === undefined) continue;
+    held.delete(String(post.id));
+    finished.push({
+      kind: "task",
+      externalId: String(post.id),
+      title,
+      state: "done",
+      doneAt: gmt(post.modified_gmt) ?? now,
+    });
+  }
+  const asked = [...held.keys()].slice(0, MAX_ASKED);
+  for (const post of await publishedAmong(http, auth, asked.map(Number))) {
+    finished.push({
+      kind: "task",
+      externalId: String(post.id),
+      title: held.get(String(post.id)) ?? `Finish: ${titleOf(post)}`,
+      state: "done",
+      doneAt: gmt(post.date_gmt) ?? now,
+    });
+  }
 
   return {
     items: [...tasks, ...events, ...finished],
-    complete: listed.complete,
+    complete: listed.complete && held.size <= MAX_ASKED,
   };
 };

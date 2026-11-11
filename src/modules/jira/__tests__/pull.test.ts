@@ -132,7 +132,7 @@ describe("pullJira", () => {
     expect(result.complete).toBe(false);
   });
 
-  it("finishes held issues that reached Done, keeping their title", async () => {
+  it("reads each held issue that dropped off: done finishes it, the rest are gone", async () => {
     const { http, calls } = fakeServiceHttp(
       JIRA,
       [
@@ -141,15 +141,19 @@ describe("pullJira", () => {
           json: { issues: [], isLast: true },
         },
         {
-          url: new RegExp(`${API}/search/jql.*key\\+in`),
-          json: {
-            issues: [
-              issue("ENG-7", {
-                statuscategorychangedate: "2026-11-11T09:30:00.000+0000",
-              }),
-            ],
-            isLast: true,
-          },
+          url: `${API}/issue/ENG-7`,
+          json: issue("ENG-7", {
+            status: { name: "Done", statusCategory: { key: "done" } },
+            statuscategorychangedate: "2026-11-11T09:30:00.000+0000",
+          }),
+        },
+        // Still open, but no longer on a complete "assigned to me" search.
+        { url: `${API}/issue/ENG-8`, json: issue("ENG-8") },
+        // Deleted: Jira answers 404.
+        {
+          url: `${API}/issue/ENG-9`,
+          status: 404,
+          json: { errorMessages: ["Issue does not exist"] },
         },
       ],
       config
@@ -159,12 +163,15 @@ describe("pullJira", () => {
         open: [
           { externalId: "ENG-7", kind: "task", title: "ENG-7 Old title" },
           { externalId: "ENG-8", kind: "task", title: "ENG-8 Quiet" },
+          { externalId: "ENG-9", kind: "task", title: "ENG-9 Deleted" },
         ],
       })
     );
-    expect(jqlOf(calls[1].url)).toBe(
-      "key in (ENG-7,ENG-8) AND statusCategory = Done"
-    );
+    expect(calls.slice(1).map((c) => new URL(c.url).pathname)).toEqual([
+      "/rest/api/3/issue/ENG-7",
+      "/rest/api/3/issue/ENG-8",
+      "/rest/api/3/issue/ENG-9",
+    ]);
     expect(result.items).toEqual([
       expect.objectContaining({
         externalId: "ENG-7",
@@ -172,6 +179,18 @@ describe("pullJira", () => {
         state: "done",
         doneAt: new Date("2026-11-11T09:30:00.000Z"),
       }),
+      {
+        kind: "task",
+        externalId: "ENG-8",
+        title: "ENG-8 Quiet",
+        state: "gone",
+      },
+      {
+        kind: "task",
+        externalId: "ENG-9",
+        title: "ENG-9 Deleted",
+        state: "gone",
+      },
     ]);
     expect(result.complete).toBe(true);
   });

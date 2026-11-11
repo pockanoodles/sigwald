@@ -189,6 +189,52 @@ describe("pullGhost", () => {
     expect(result.readings).toEqual([]);
   });
 
+  it("finishes a held draft once it's scheduled, before it's published", async () => {
+    const { http } = fakeServiceHttp(
+      GHOST,
+      [
+        {
+          url: new RegExp(`${API}/posts/\\?.*status%3Adraft`),
+          json: { posts: [], meta: { pagination: { next: null } } },
+        },
+        {
+          url: new RegExp(`${API}/posts/\\?.*status%3Ascheduled`),
+          json: {
+            posts: [
+              post("d9", {
+                status: "scheduled",
+                updated_at: "2026-11-11T08:00:00.000Z",
+                published_at: "2026-11-14T13:00:00.000Z",
+              }),
+            ],
+            meta: { pagination: { next: null } },
+          },
+        },
+        {
+          url: new RegExp(`${API}/posts/\\?.*status%3Apublished`),
+          json: { posts: [] },
+        },
+        { url: `${API}/members/`, status: 403, json: { errors: [] } },
+      ],
+      { site: SITE }
+    );
+    const result = await pullGhost(
+      ctx(http, {
+        open: [{ externalId: "d9", kind: "task", title: "Finish: Old" }],
+      })
+    );
+    expect(result.items).toContainEqual({
+      kind: "task",
+      externalId: "d9",
+      title: "Finish: Old",
+      state: "done",
+      doneAt: new Date("2026-11-11T08:00:00.000Z"),
+    });
+    expect(result.items).toContainEqual(
+      expect.objectContaining({ kind: "event", externalId: "scheduled:d9" })
+    );
+  });
+
   it("says it is partial when there are more drafts than one page", async () => {
     const { http } = fakeServiceHttp(
       GHOST,

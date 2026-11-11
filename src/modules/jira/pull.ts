@@ -5,7 +5,12 @@
  * Jira finishes its task. An issue moved to another project gets a new key
  * and is treated as new.
  */
-import { type JiraIssue, searchJql } from "@/lib/connectors/jira/client";
+import { isConnectorError } from "@/lib/connectors/errors";
+import {
+  type JiraIssue,
+  getIssue,
+  searchJql,
+} from "@/lib/connectors/jira/client";
 
 import {
   type PullFn,
@@ -68,6 +73,9 @@ function toTask(issue: JiraIssue, site: string): PulledTask {
 
 const KEY = /^[A-Z][A-Z0-9_]*-\d+$/;
 
+/** Held issues read one by one per pull, at most. */
+const MAX_CHECKS = 20;
+
 export const pullJira: PullFn = async (ctx) => {
   const { http, secret, config, now } = ctx;
   const site = config.site ?? "";
@@ -88,31 +96,36 @@ export const pullJira: PullFn = async (ctx) => {
       .map((o) => [o.externalId, o.title])
   );
   const finished: PulledTask[] = [];
-  if (missing.size > 0) {
-    // Ask after exactly the held issues, so a busy week of Done work can't push them off a page.
-    const keys = [...missing.keys()].slice(0, 50);
-    if (keys.length < missing.size) complete = false;
-    const done = await searchJql(
-      http,
-      secret,
-      config,
-      `key in (${keys.join(",")}) AND statusCategory = Done`,
-      1
-    );
-    if (!done.complete) complete = false;
-    for (const issue of done.issues) {
-      const title = missing.get(issue.key);
-      if (title === undefined) continue;
-      finished.push({
-        kind: "task",
-        externalId: issue.key,
-        title,
-        state: "done",
-        doneAt:
-          toDate(issue.fields.statuscategorychangedate) ??
-          toDate(issue.fields.updated) ??
-          now,
-      });
+  // Each held issue that dropped off the open search, read by key (a JQL
+  // "key in" list fails whole if one key was deleted). At most MAX_CHECKS a
+  // pull; each one settled leaves the open set, so the next pull checks the
+  // next.
+  const batch = [...missing].slice(0, MAX_CHECKS);
+  if (batch.length < missing.size) complete = false;
+  for (const [key, title] of batch) {
+    try {
+      const issue = await getIssue(http, secret, config, key);
+      if (issue.fields.status?.statusCategory?.key === "done") {
+        finished.push({
+          kind: "task",
+          externalId: key,
+          title,
+          state: "done",
+          doneAt:
+            toDate(issue.fields.statuscategorychangedate) ??
+            toDate(issue.fields.updated) ??
+            now,
+        });
+      } else if (found.complete) {
+        // Not done and, by a complete search, not yours any more.
+        finished.push({ kind: "task", externalId: key, title, state: "gone" });
+      }
+    } catch (error) {
+      if (isConnectorError(error) && error.kind === "not_found") {
+        finished.push({ kind: "task", externalId: key, title, state: "gone" });
+      } else {
+        complete = false;
+      }
     }
   }
 

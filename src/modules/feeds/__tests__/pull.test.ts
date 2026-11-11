@@ -68,3 +68,17 @@ describe("pullFeeds", () => {
     expect(result.complete).toBe(false);
   });
 });
+
+describe("a feed that shows only its newest posts", () => {
+  it("can't vouch for the window when what it shows doesn't reach back past it", async () => {
+    const short = `<rss version="2.0"><channel><title>Short</title>
+      <item><title>Today</title><link>https://x.io/1</link><guid>1</guid>
+      <pubDate>Wed, 11 Nov 2026 09:00:00 GMT</pubDate></item></channel></rss>`;
+    const { http } = fakeServiceHttp(WEB, [
+      { url: "https://x.io/feed", text: short },
+    ]);
+    const result = await pullFeeds(ctx(http, { feeds: ["https://x.io/feed"] }));
+    expect(result.items).toHaveLength(1);
+    expect(result.complete).toBe(false);
+  });
+});
