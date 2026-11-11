@@ -7,7 +7,7 @@ const wordpress: ModuleManifest = {
   id: "wordpress",
   name: "WordPress",
   summary:
-    "For self-hosted WordPress with Application Passwords, not WordPress.com. Your drafts and posts awaiting review as tasks, scheduled posts on the calendar.",
+    "Your drafts and posts awaiting review as tasks, and scheduled posts on the calendar. For self-hosted WordPress with Application Passwords, not WordPress.com.",
   defaultOn: false,
   beta: true,
   shelf: "writing",
