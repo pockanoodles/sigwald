@@ -56,7 +56,18 @@ export type ModuleId =
   | "toggl"
   | "clockify"
   | "ynab"
-  | "lemonsqueezy";
+  | "lemonsqueezy"
+  | "hubspot"
+  | "pipedrive"
+  | "calendly"
+  | "calcom"
+  | "zendesk"
+  | "youtube"
+  | "transistor"
+  | "patreon"
+  | "unsplash"
+  | "zotero"
+  | "readwise";
 
 /**
  * A shelf in the marketplace (/modules). Every module sits on exactly one;

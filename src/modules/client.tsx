@@ -194,6 +194,17 @@ export const CLIENT_MODULES: Record<ModuleId, ClientContributions> = {
   clockify: connectorClient("clockify"),
   ynab: connectorClient("ynab"),
   lemonsqueezy: connectorClient("lemonsqueezy"),
+  hubspot: connectorClient("hubspot"),
+  pipedrive: connectorClient("pipedrive"),
+  calendly: connectorClient("calendly"),
+  calcom: connectorClient("calcom"),
+  zendesk: connectorClient("zendesk"),
+  youtube: connectorClient("youtube"),
+  transistor: connectorClient("transistor"),
+  patreon: connectorClient("patreon"),
+  unsplash: connectorClient("unsplash"),
+  zotero: connectorClient("zotero"),
+  readwise: connectorClient("readwise"),
 };
 
 /**

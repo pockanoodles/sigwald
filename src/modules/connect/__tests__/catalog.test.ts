@@ -32,6 +32,12 @@ describe("the marketplace", () => {
     const sources = MODULES.flatMap((m) => m.sources);
     expect(new Set(sources).size).toBe(sources.length);
   });
+
+  it("keeps every shelf stocked", () => {
+    for (const shelf of SHELVES) {
+      expect(MODULES.some((m) => m.shelf === shelf.id)).toBe(true);
+    }
+  });
 });
 
 describe("connector modules", () => {
