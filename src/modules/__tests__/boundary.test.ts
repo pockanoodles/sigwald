@@ -85,6 +85,15 @@ const OWNED: Record<string, string[]> = {
   github: ["src/modules/github/"],
   linear: ["src/modules/linear/"],
   stripe: ["src/modules/stripe/"],
+  daylight: ["src/modules/daylight/"],
+  inbox: ["src/modules/inbox/", "src/app/api/sigwald/inbox/"],
+  readouts: [
+    "src/modules/readouts/",
+    "src/app/(common)/readouts/",
+    "src/app/api/sigwald/readouts/",
+  ],
+  deadlines: ["src/modules/deadlines/"],
+  sheet: ["src/modules/sheet/"],
 };
 
 const REGISTRIES = new Set([
