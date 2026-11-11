@@ -135,6 +135,11 @@ const OWNED: Record<string, string[]> = {
   unsplash: ["src/modules/unsplash/"],
   zotero: ["src/modules/zotero/"],
   readwise: ["src/modules/readwise/"],
+  moodle: ["src/modules/moodle/"],
+  wanikani: ["src/modules/wanikani/"],
+  intervals: ["src/modules/intervals/"],
+  uptimerobot: ["src/modules/uptimerobot/"],
+  plausible: ["src/modules/plausible/"],
 };
 
 const REGISTRIES = new Set([

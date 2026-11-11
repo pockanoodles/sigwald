@@ -42,6 +42,7 @@ import { pullHarvest } from "@/modules/harvest/pull";
 import { pullHolidays } from "@/modules/holidays/pull";
 import { pullHubspot } from "@/modules/hubspot/pull";
 import { pullInbox } from "@/modules/inbox/pull";
+import { pullIntervals } from "@/modules/intervals/pull";
 import { pullJira } from "@/modules/jira/pull";
 import { pullJobs } from "@/modules/jobs/pull";
 import { pullKit } from "@/modules/kit/pull";
@@ -50,12 +51,14 @@ import { searchGoals } from "@/modules/ladder/search";
 import { linkChangedTasksToGoals } from "@/modules/ladder/server";
 import { pullLemonSqueezy } from "@/modules/lemonsqueezy/pull";
 import { pullLinear } from "@/modules/linear/pull";
+import { pullMoodle } from "@/modules/moodle/pull";
 import { pullNotion } from "@/modules/notion/pull";
 import { pullPagerduty } from "@/modules/pagerduty/pull";
 import { pullPatreon } from "@/modules/patreon/pull";
 import { reconcileReachOuts } from "@/modules/people/reach-out";
 import { searchPeople } from "@/modules/people/search";
 import { pullPipedrive } from "@/modules/pipedrive/pull";
+import { pullPlausible } from "@/modules/plausible/pull";
 import { pullReadwise } from "@/modules/readwise/pull";
 import { pullScholar } from "@/modules/scholar/pull";
 import { pullSentry } from "@/modules/sentry/pull";
@@ -73,6 +76,8 @@ import { pullTransistor } from "@/modules/transistor/pull";
 import { pullTrello } from "@/modules/trello/pull";
 import type { ClaimOption, ModuleId, ProofItem } from "@/modules/types";
 import { pullUnsplash } from "@/modules/unsplash/pull";
+import { pullUptimeRobot } from "@/modules/uptimerobot/pull";
+import { pullWaniKani } from "@/modules/wanikani/pull";
 import { pullWeather } from "@/modules/weather/pull";
 import { pullWordpress } from "@/modules/wordpress/pull";
 import { restoreShiftEvents } from "@/modules/work/feed";
@@ -246,4 +251,9 @@ export const SERVER_MODULES: Record<ModuleId, ServerContributions> = {
   unsplash: connectorServer("unsplash", pullUnsplash),
   zotero: connectorServer("zotero", pullZotero),
   readwise: connectorServer("readwise", pullReadwise),
+  moodle: connectorServer("moodle", pullMoodle),
+  wanikani: connectorServer("wanikani", pullWaniKani),
+  intervals: connectorServer("intervals", pullIntervals),
+  uptimerobot: connectorServer("uptimerobot", pullUptimeRobot),
+  plausible: connectorServer("plausible", pullPlausible),
 };

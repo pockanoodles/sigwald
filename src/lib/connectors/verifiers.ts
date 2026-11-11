@@ -16,14 +16,17 @@ import { verifyGithub } from "./github/client";
 import { verifyGitlab } from "./gitlab/client";
 import { verifyHarvest } from "./harvest/client";
 import { verifyHubspot } from "./hubspot/client";
+import { verifyIntervals } from "./intervals/client";
 import { verifyJira } from "./jira/client";
 import { verifyKit } from "./kit/client";
 import { verifyLemonSqueezy } from "./lemonsqueezy/client";
 import { verifyLinear } from "./linear/client";
+import { verifyMoodle } from "./moodle/client";
 import { verifyNotion } from "./notion/client";
 import { verifyPagerduty } from "./pagerduty/client";
 import { verifyPatreon } from "./patreon/client";
 import { verifyPipedrive } from "./pipedrive/client";
+import { verifyPlausible } from "./plausible/client";
 import { verifyReadwise } from "./readwise/client";
 import { verifySentry } from "./sentry/client";
 import { verifyStripe } from "./stripe/client";
@@ -33,6 +36,8 @@ import { verifyTransistor } from "./transistor/client";
 import { verifyTrello } from "./trello/client";
 import type { VerifyFn } from "./types";
 import { verifyUnsplash } from "./unsplash/client";
+import { verifyUptimeRobot } from "./uptimerobot/client";
+import { verifyWaniKani } from "./wanikani/client";
 import { verifyWordpress } from "./wordpress/client";
 import { verifyYnab } from "./ynab/client";
 import { verifyYoutube } from "./youtube/client";
@@ -74,4 +79,9 @@ export const VERIFIERS: Record<string, VerifyFn> = {
   unsplash: verifyUnsplash,
   zotero: verifyZotero,
   readwise: verifyReadwise,
+  moodle: verifyMoodle,
+  wanikani: verifyWaniKani,
+  intervals: verifyIntervals,
+  uptimerobot: verifyUptimeRobot,
+  plausible: verifyPlausible,
 };
