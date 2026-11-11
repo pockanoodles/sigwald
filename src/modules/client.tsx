@@ -164,6 +164,16 @@ export const CLIENT_MODULES: Record<ModuleId, ClientContributions> = {
   readouts: { command: { icon: HiOutlineChartBar, shortcut: "gr" } },
   deadlines: connectorClient("deadlines"),
   sheet: connectorClient("sheet"),
+  holidays: connectorClient("holidays"),
+  weather: connectorClient("weather"),
+  jobs: connectorClient("jobs"),
+  arxiv: connectorClient("arxiv"),
+  feeds: connectorClient("feeds"),
+  fedreg: connectorClient("fedreg"),
+  scholar: connectorClient("scholar"),
+  codeforces: connectorClient("codeforces"),
+  bluesky: connectorClient("bluesky"),
+  hackernews: connectorClient("hackernews"),
 };
 
 /**

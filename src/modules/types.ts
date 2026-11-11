@@ -26,7 +26,17 @@ export type ModuleId =
   | "inbox"
   | "readouts"
   | "deadlines"
-  | "sheet";
+  | "sheet"
+  | "holidays"
+  | "weather"
+  | "jobs"
+  | "arxiv"
+  | "feeds"
+  | "fedreg"
+  | "scholar"
+  | "codeforces"
+  | "bluesky"
+  | "hackernews";
 
 /**
  * A shelf in the marketplace (/modules). Every module sits on exactly one;

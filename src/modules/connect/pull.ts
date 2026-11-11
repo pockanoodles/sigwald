@@ -98,8 +98,8 @@ export type PulledItem = PulledTask | PulledEvent;
 
 /**
  * A number, as it stands today. Units: "count", "percent", "hours",
- * "minutes", or a currency's lowercase ISO code ("usd") for money, in whole
- * units (dollars, not cents).
+ * "minutes", "celsius", "fahrenheit", or a currency's lowercase ISO code
+ * ("usd") for money, in whole units (dollars, not cents).
  */
 export interface PulledReading {
   key: string;

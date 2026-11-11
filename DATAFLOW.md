@@ -61,6 +61,15 @@ What a module reads stays in the local database: a mirror of each thing it track
 | Linear | `api.linear.app` | Your API key, with GraphQL queries (sent by POST) for the issues assigned to you | Your assigned issues with their priority, due dates and cycles, and when they are done |
 | Stripe | `api.stripe.com` | A restricted key, with requests for your balance, disputes, active subscriptions and the last 30 days of charges | Your balance, recurring revenue and volume as numbers, and a task for each dispute that needs an answer. Sigwald refuses a full secret key |
 | Public links (Deadline feed, Spreadsheet, Feeds) | Only the addresses you put in the module's settings | A plain request for each address, which carries your IP address and no account | Read the calendar, spreadsheet or feed at each address. Each address must be a public one, checked at every redirect |
+| Nager.Date (Holidays) | `date.nager.at` | The two-letter codes of the countries you choose, and a year | Those countries' public holidays, on your calendar |
+| Open-Meteo (Weather) | `api.open-meteo.com` | The place you set, as latitude and longitude, and your time zone | The forecast there: today's high, low and chance of rain, and the hours rain is likely |
+| Greenhouse, Lever and Ashby job boards (Job boards) | `boards-api.greenhouse.io`, `api.lever.co`, `api.ashbyhq.com` | The names of the companies' boards you follow | The openings those companies post, read the way their careers pages read them. Nothing applies for you |
+| arXiv | `export.arxiv.org` | The search you set | The newest papers that match it |
+| Federal Register | `www.federalregister.gov` | The words and agencies you follow | Proposed rules and notices still open for comment. No comment is sent |
+| Semantic Scholar | `api.semanticscholar.org` | The author id you set | That author's citation count, h-index and number of papers |
+| Codeforces | `codeforces.com` | The handle you set, if any | The coming rounds and your rating |
+| Bluesky | `public.api.bsky.app` | The handle you set | Its public follower, following and post counts. No account or app password |
+| Hacker News (Hacker News mentions) | `hn.algolia.com` | The words you watch for | New stories and comments that mention them |
 
 Some modules reach nothing outside. Golden hour works out the sun's position on this machine, Readouts only shows what other modules read, and Inbox only takes in what something sends to its private address (below).
 
