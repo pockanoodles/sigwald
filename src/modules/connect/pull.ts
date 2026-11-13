@@ -26,7 +26,11 @@ export interface PullContext {
   timeZone: string;
   /** What the last pull left for this one. */
   cursor: unknown;
-  /** What Sigwald holds open from it now, so a pull that can't list everything can ask after these. */
+  /**
+   * What Sigwald holds open from it now, so a pull that can't list everything
+   * can ask after these. Shuffled each pull, so one that checks only the first
+   * few reaches every one in time, even past items still open.
+   */
   open: readonly {
     externalId: string;
     kind: "task" | "event";

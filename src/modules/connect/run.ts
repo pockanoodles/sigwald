@@ -73,6 +73,16 @@ export function pullWait(spec: ConnectSpec, failures: number): number {
   );
 }
 
+/** A copy in random order (Fisher-Yates). */
+export function shuffled<T>(list: readonly T[], random = Math.random): T[] {
+  const out = [...list];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
 /** When a service that refused with Retry-After may be asked again, or null. */
 export function askedRetryAt(error: unknown, answeredAt: Date): Date | null {
   if (
@@ -297,7 +307,7 @@ async function pullClaimed(
         now,
         timeZone,
         cursor: sync?.cursor ?? null,
-        open: open.map((o) => ({
+        open: shuffled(open).map((o) => ({
           externalId: o.externalId,
           kind: o.kind === "event" ? "event" : "task",
           title: o.title,
