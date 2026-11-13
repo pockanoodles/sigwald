@@ -54,13 +54,18 @@ export async function writeDownload(
   }
 }
 
+/** The readable folder name for a course: "MISM2301.10244.202710" → "MISM2301", or null. */
+export function courseFolderAlias(courseCode: string | null): string | null {
+  return courseCode?.match(/^[A-Z]{2,5}\s?\d{4}/)?.[0].replace(/\s/, "") ?? null;
+}
+
 /**
  * A readable name beside each course's numeric folder — `MISM2301 → 265615` —
  * so a person or a shell session can find a course's files without looking up
  * its Canvas id. Best effort: a name already taken by something else is left alone.
  */
 export async function linkCourseFolder(courseCanvasId: string, courseCode: string | null): Promise<void> {
-  const alias = courseCode?.match(/^[A-Z]{2,5}\s?\d{4}/)?.[0].replace(/\s/, "");
+  const alias = courseFolderAlias(courseCode);
   if (!alias) {
     return;
   }
