@@ -154,6 +154,51 @@ describe("pullCalendly", () => {
     expect(result.items).toHaveLength(1);
   });
 
+  it("reads a meeting's names again only when the booking changes", async () => {
+    const uri = `${API}/scheduled_events/E1`;
+    const group = (active: number) =>
+      event("E1", { invitees_counter: { total: active, active, limit: 5 } });
+    const first = fakeServiceHttp(CALENDLY, [
+      { url: `${API}/scheduled_events?`, json: page([group(1)]) },
+      {
+        url: `${API}/scheduled_events/E1/invitees`,
+        json: { collection: [{ name: "Dana Reyes" }] },
+      },
+    ]);
+    const kept = (await pullCalendly(ctx(first.http))).cursor;
+
+    const same = fakeServiceHttp(CALENDLY, [
+      { url: `${API}/scheduled_events?`, json: page([group(1)]) },
+    ]);
+    const unchanged = await pullCalendly(ctx(same.http, { cursor: kept }));
+    expect(same.calls).toHaveLength(1);
+    expect(unchanged.items[0]).toMatchObject({
+      description: "With Dana Reyes",
+    });
+
+    const joined = fakeServiceHttp(CALENDLY, [
+      { url: `${API}/scheduled_events?`, json: page([group(2)]) },
+      {
+        url: `${API}/scheduled_events/E1/invitees`,
+        json: { collection: [{ name: "Dana Reyes" }, { name: "Sam Ito" }] },
+      },
+    ]);
+    const after = await pullCalendly(ctx(joined.http, { cursor: kept }));
+    expect(after.items[0]).toMatchObject({
+      externalId: uri,
+      description: "With Dana Reyes, Sam Ito",
+    });
+
+    // A failed re-read keeps the names it had, and tries again next time.
+    const failing = fakeServiceHttp(CALENDLY, [
+      { url: `${API}/scheduled_events?`, json: page([group(2)]) },
+      { url: `${API}/scheduled_events/E1/invitees`, status: 403, json: {} },
+    ]);
+    const held = await pullCalendly(ctx(failing.http, { cursor: kept }));
+    expect(held.items[0]).toMatchObject({ description: "With Dana Reyes" });
+    expect(held.cursor).toEqual(kept);
+  });
+
   it("only reads", async () => {
     const { http, calls } = fakeServiceHttp(CALENDLY, [
       { url: `${API}/scheduled_events?`, json: page([]) },

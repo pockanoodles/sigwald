@@ -16,7 +16,8 @@
  * - https://github.com/moodle/moodle/blob/main/public/calendar/classes/external/event_exporter_base.php
  *   (the event's fields)
  * - core_webservice_get_site_info (userid, fullname, sitename) and
- *   mod_assign_get_submission_status (assignid; lastattempt.submission.status)
+ *   mod_assign_get_submission_status (assignid; lastattempt.submission.status,
+ *   or lastattempt.teamsubmission.status on a group assignment)
  *   are read from each site's own /admin/webservice/documentation.php, which
  *   is where Moodle publishes the exact shapes for its version.
  * An action event's `instance` is its course module's id, not the
@@ -140,9 +141,16 @@ export async function actionEvents(
   return { events, complete: false };
 }
 
+interface MoodleSubmission {
+  status?: string;
+  timemodified?: number;
+}
+
 export interface MoodleSubmissionStatus {
   lastattempt?: {
-    submission?: { status?: string; timemodified?: number } | null;
+    submission?: MoodleSubmission | null;
+    /** The group's submission, on an assignment one teammate submits for all. */
+    teamsubmission?: MoodleSubmission | null;
   } | null;
 }
 

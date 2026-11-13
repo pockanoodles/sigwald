@@ -106,9 +106,9 @@ export const pullHarvest: PullFn = async ({
   try {
     const invoices = await openInvoices(http, secret, config);
     if (!invoices.complete) complete = false;
-    const overdue = invoices.data.filter(
-      (inv) => inv.due_date && inv.due_date.slice(0, 10) < today
-    );
+    const isOverdue = (inv: HarvestInvoice) =>
+      !!inv.due_date && inv.due_date.slice(0, 10) < today;
+    const overdue = invoices.data.filter(isOverdue);
     items.push(...overdue.map(invoiceTask));
 
     // Held invoices that dropped off the list: ask whether they were paid.
@@ -120,6 +120,11 @@ export const pullHarvest: PullFn = async ({
     for (const h of gone.slice(0, MAX_DONE_CHECKS)) {
       try {
         const inv = await invoice(http, secret, config, h.externalId);
+        // Still open and overdue, just past a list cut short: keep chasing.
+        if (inv.state === "open" && isOverdue(inv)) {
+          items.push(invoiceTask(inv));
+          continue;
+        }
         // Only a paid invoice was chased to its end. One written off
         // (closed), back in draft, voided, or open but no longer overdue has
         // nothing left to chase: gone, said of it so the next pull checks

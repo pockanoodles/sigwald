@@ -40,6 +40,8 @@ export interface CalendlyEvent {
   start_time: string;
   end_time: string;
   updated_at?: string;
+  /** How many have booked it: the cue a group event's invitees changed. */
+  invitees_counter?: { active?: number } | null;
   location?: {
     type?: string;
     location?: string | null;

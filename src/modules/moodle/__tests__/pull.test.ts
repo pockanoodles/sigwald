@@ -185,6 +185,54 @@ describe("pullMoodle", () => {
     });
   });
 
+  it("finishes a group assignment a teammate submitted", async () => {
+    const { http } = fakeServiceHttp(
+      MOODLE,
+      [
+        {
+          method: "POST",
+          url: API,
+          body: /get_action_events/,
+          json: { events: [] },
+        },
+        {
+          method: "POST",
+          url: API,
+          body: /core_course_get_course_module/,
+          json: { cm: { id: 108, modname: "assign", instance: 7 } },
+        },
+        {
+          method: "POST",
+          url: API,
+          body: /mod_assign_get_submission_status/,
+          json: {
+            lastattempt: {
+              submission: { status: "new", timemodified: 1_792_000_000 },
+              teamsubmission: {
+                status: "submitted",
+                timemodified: 1_793_000_000,
+              },
+            },
+          },
+        },
+      ],
+      config
+    );
+    const result = await pullMoodle(
+      ctx(http, {
+        open: [{ externalId: "8", kind: "task", title: "Essay 8 is due" }],
+        cursor: { "8": { module: "assign", instance: 108 } },
+      })
+    );
+    expect(result.items).toEqual([
+      expect.objectContaining({
+        externalId: "8",
+        state: "done",
+        doneAt: new Date(1_793_000_000 * 1000),
+      }),
+    ]);
+  });
+
   it("doesn't vouch for the rest when a check fails", async () => {
     const { http } = fakeServiceHttp(
       MOODLE,

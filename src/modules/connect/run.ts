@@ -39,6 +39,12 @@ const LOG_SOURCE = "ConnectorPull";
 /** One pull gets this long, all its requests together. */
 const PULL_DEADLINE_MS = 120_000;
 const MAX_BACKOFF_MS = 12 * 60 * 60 * 1000;
+/**
+ * The longest wait a service's Retry-After is honoured for: a daily quota's
+ * whole day. Past that the header is broken, and it mustn't stop a module
+ * (Read now included) for longer.
+ */
+const MAX_ASKED_WAIT_MS = 24 * 60 * 60 * 1000;
 /** A claim this old belongs to a pull that died: past its deadline, with room to write. */
 const LEASE_MS = PULL_DEADLINE_MS + 60_000;
 
@@ -64,6 +70,19 @@ export function pullWait(spec: ConnectSpec, failures: number): number {
   return Math.min(
     base * 2 ** Math.min(failures, 10),
     Math.max(base, MAX_BACKOFF_MS)
+  );
+}
+
+/** When a service that refused with Retry-After may be asked again, or null. */
+export function askedRetryAt(error: unknown, answeredAt: Date): Date | null {
+  if (
+    !isConnectorError(error) ||
+    error.kind !== "rate_limited" ||
+    !error.retryAfter
+  )
+    return null;
+  return new Date(
+    answeredAt.getTime() + Math.min(error.retryAfter * 1000, MAX_ASKED_WAIT_MS)
   );
 }
 
@@ -330,15 +349,7 @@ async function pullClaimed(
       });
     }
     // The wait a service asked for runs from its answer, not the pull's start.
-    const retryAt =
-      isConnectorError(error) &&
-      error.kind === "rate_limited" &&
-      error.retryAfter
-        ? new Date(
-            newDate().getTime() +
-              Math.min(error.retryAfter * 1000, MAX_BACKOFF_MS)
-          )
-        : null;
+    const retryAt = askedRetryAt(error, newDate());
     await record(userId, moduleId, {
       lastPullAt: now,
       failures: (sync?.failures ?? 0) + 1,
