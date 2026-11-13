@@ -1,7 +1,13 @@
+import { ConnectorError } from "@/lib/connectors/errors";
 import type { ServiceManifest } from "@/lib/connectors/types";
 
 import { parseConnectFields } from "@/modules/connect/fields";
-import { askedWait, isPullDue, pullWait } from "@/modules/connect/run";
+import {
+  askedRetryAt,
+  askedWait,
+  isPullDue,
+  pullWait,
+} from "@/modules/connect/run";
 import type { ConnectSpec } from "@/modules/connect/spec";
 
 const jira: ServiceManifest = {
@@ -95,6 +101,19 @@ describe("pull timing", () => {
     const later = new Date(retryAt.getTime() + 1);
     expect(isPullDue(spec, limited, later)).toBe(true);
     expect(askedWait(limited, later)).toBe(0);
+  });
+
+  it("keeps the whole wait a service asks for, up to a day", () => {
+    const limited = (seconds?: number) =>
+      new ConnectorError("rate_limited", "slow down", 429, seconds);
+    const hours = (at: Date | null) =>
+      at ? (at.getTime() - now.getTime()) / 3_600_000 : null;
+    expect(hours(askedRetryAt(limited(86_400), now))).toBe(24);
+    expect(hours(askedRetryAt(limited(30 * 86_400), now))).toBe(24);
+    expect(askedRetryAt(limited(), now)).toBeNull();
+    expect(
+      askedRetryAt(new ConnectorError("network", "down", 0, 60), now)
+    ).toBeNull();
   });
 
   it("never pulls a module that's sent things instead", () => {

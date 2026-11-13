@@ -2,8 +2,9 @@
  * Moodle's pull: the assignments and quizzes that fall due from two weeks ago
  * to 60 days ahead, as tasks due at their deadline. Moodle drops an
  * assignment from this list once it is submitted, so a held task that is no
- * longer listed is checked: a submitted assignment is done, an unsubmitted
- * one has left the window and goes. A quiz has no cheap check, so it goes.
+ * longer listed is checked: a submitted assignment (yours or your group's) is
+ * done, an unsubmitted one has left the window and goes. A quiz has no cheap
+ * check, so it goes.
  */
 import { isConnectorError } from "@/lib/connectors/errors";
 import {
@@ -127,8 +128,13 @@ export const pullMoodle: PullFn = async (ctx) => {
           continue;
         }
         const status = await submissionStatus(http, auth, cm.instance);
-        const submission = status.lastattempt?.submission;
-        if (submission?.status === "submitted") {
+        // On a group assignment a teammate's submission counts for everyone,
+        // and the key owner's own record can stay unsubmitted.
+        const submission = [
+          status.lastattempt?.submission,
+          status.lastattempt?.teamsubmission,
+        ].find((s) => s?.status === "submitted");
+        if (submission) {
           settled.push({
             kind: "task",
             externalId: held.externalId,

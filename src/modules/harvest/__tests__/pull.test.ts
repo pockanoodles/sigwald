@@ -145,7 +145,10 @@ describe("pullHarvest", () => {
           paid_at: "2026-11-10T09:00:00Z",
         },
       },
-      { url: `${API}/invoices/81`, json: { ...overdue, id: 81 } },
+      {
+        url: `${API}/invoices/81`,
+        json: { ...overdue, id: 81, due_date: "2026-11-30" },
+      },
     ]);
     const result = await pullHarvest(
       ctx(http, [
@@ -169,6 +172,23 @@ describe("pullHarvest", () => {
       },
     ]);
     expect(result.complete).toBe(true);
+  });
+
+  it("keeps chasing a held invoice that's still overdue, past a list cut short", async () => {
+    const { http } = fakeServiceHttp(HARVEST, [
+      { url: `${API}/time_entries`, json: entries },
+      { url: `${API}/invoices?`, json: { invoices: [], next_page: 6 } },
+      { url: `${API}/invoices/82`, json: { ...overdue, id: 82 } },
+    ]);
+    const result = await pullHarvest(
+      ctx(http, [
+        { externalId: "82", kind: "task", title: "Chase invoice 1042 (Acme)" },
+      ])
+    );
+    expect(result.items).toEqual([
+      expect.objectContaining({ externalId: "82", state: "open" }),
+    ]);
+    expect(result.complete).toBe(false);
   });
 
   it("leaves readings out when the entries are cut off, and says so for invoices", async () => {
