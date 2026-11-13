@@ -7,6 +7,7 @@ import {
   askedWait,
   isPullDue,
   pullWait,
+  shuffled,
 } from "@/modules/connect/run";
 import type { ConnectSpec } from "@/modules/connect/spec";
 
@@ -114,6 +115,21 @@ describe("pull timing", () => {
     expect(
       askedRetryAt(new ConnectorError("network", "down", 0, 60), now)
     ).toBeNull();
+  });
+
+  it("hands held items over in a new order each pull, losing none", () => {
+    const held = Array.from({ length: 50 }, (_, i) => i);
+    const once = shuffled(held);
+    expect([...once].sort((a, b) => a - b)).toEqual(held);
+    expect(once).not.toEqual(held);
+    // With a capped check of the first 20, every item comes first in time.
+    const reached = new Set<number>();
+    for (let pull = 0; pull < 40; pull++)
+      shuffled(held)
+        .slice(0, 20)
+        .forEach((i) => reached.add(i));
+    expect(reached.size).toBe(50);
+    expect(shuffled(held, () => 0.999999)).toEqual(held);
   });
 
   it("never pulls a module that's sent things instead", () => {
